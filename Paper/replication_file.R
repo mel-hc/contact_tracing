@@ -24,10 +24,20 @@ library(gridExtra)
 # 2) call make_params to set up transition matrix
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by symptom type
-get_R_paper = function(P_RR = 1, P_dur = 1.5, S_RR = 1, S_dur = 4, A_RR = .7, A_dur = 5.5, 
-                 A_prob.det = 0.1, A_prob, contact_trace_prob = 0.9,
-                 comparator = "Contact tracing only", baseline_S_prob.det = 0.2, 
-                 baseline_A_prob.det = 0.05, test_uptake = 0.9, rel_trans = 0.5){
+get_R_paper = function(P_RR = 1, 
+                       P_dur = 1.5, 
+                       S_RR = 1, 
+                       S_dur = 4, 
+                       A_RR = .7, 
+                       A_dur = 5.5, 
+                       A_prob.det = 0.1, 
+                       A_prob, 
+                       contact_trace_prob = 0.9,
+                       comparator = "Contact tracing only", 
+                       baseline_S_prob.det = 0.2, 
+                       baseline_A_prob.det = 0.05, 
+                       test_uptake = 0.9, 
+                       rel_trans = 0.5){
   
   # parameters over which to vary
   param_vary = data.frame(expand.grid(S_prob.det = seq(.1, .9, length.out = 9),

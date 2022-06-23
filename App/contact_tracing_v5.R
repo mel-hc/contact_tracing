@@ -1,18 +1,30 @@
-#********************************** Contact Tracing Model *********************************#
-#                                                                                          #
-#                                                                                          #
-#                                                                                          #
-#******************************************************************************************#
+### CONTACT TRACING MODEL### 
 
 #### GET_R: UMBRELLA FUNCTION ####
 # 1) set variable over which to vary outcomes
 # 2) call make_params to set up transition matrix
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by symptom type
-get_R = function(P_RR, P_dur, S_RR, S_dur, A_RR, A_dur, S_prob.det,
-                 A_prob.det, A_prob, contact_trace_prob,
-                 comparator, baseline_S_prob.det, baseline_A_prob.det, 
-                 test_uptake, adh, adh2, rel_trans, xaxis){
+
+get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
+                 P_dur, # duration of infectiousness, presymptomatic
+                 S_RR, # infectiousness of symptomatic group (set = 1)
+                 S_dur, # duration of infectiousness, symptomatic
+                 A_RR, # relative infectiousness asymptomatic to symptomatic
+                 A_dur, # duration of infectiousness, asymptomatic 
+                 S_prob.det, # detection probability, symptomatic
+                 A_prob.det, # detection probability, asymptomatic
+                 A_prob, # fraction of infections that are asymptomatic 
+                 contact_trace_prob, # probability of contact tracing 
+                 comparator, # character string, assigns a scenario
+                 baseline_S_prob.det, # probability detection w/o tracing (sym)
+                 baseline_A_prob.det, # probability detection w/o tracing (asym)
+                 test_uptake, # probability tested if traced 
+                 adh, # adherence to isolation measures (% redux in contacts)
+                 adh2, # adherence to isolation measures (% redux in contacts)
+                 rel_trans, # relative number of secondary infections (detected 
+                            # compared to undetected)
+                 xaxis){
   
   # set x-axis
   var = c(eval(parse(text = xaxis)), seq(.1, .9, length.out = 9), .95)
@@ -36,7 +48,6 @@ get_R = function(P_RR, P_dur, S_RR, S_dur, A_RR, A_dur, S_prob.det,
                     mutate(
                       # store variable values
                       var = var[i], 
-                      
                       # note if these were selected inputs
                       point = ifelse(i == 1, "point", "omit")))
     
@@ -47,70 +58,121 @@ get_R = function(P_RR, P_dur, S_RR, S_dur, A_RR, A_dur, S_prob.det,
 }
 
 #### make_params: Make parameter set associated with each scenario ####
-# 1) Take in model inputs
+# 1) Take in model inputs (see above)
 # 2) Return set of parameters for each scenario
-make_params = function(P_RR, P_dur, S_RR, S_dur, A_RR, A_dur, S_prob.det,
-                       A_prob.det, A_prob, contact_trace_prob, comparator,
-                       baseline_S_prob.det, baseline_A_prob.det, test_uptake, adh, adh2, rel_trans){
+  # Scenarios: 
+  # Counteractual: No contact tracing
+  # Base Case: Symptomatic testing, contact tracing
+  # 
+make_params = function(P_RR, # relative infectiousness presym to symp
+                       P_dur, # duration of infectiousness, presymp
+                       S_RR, # infectiousness of symptomatic group (set = 1)
+                       S_dur, # duration of infectiousness, symptomatic
+                       A_RR, # relative infectiousness asym to sym
+                       A_dur, # duration of infectiousness, asymptomatic 
+                       S_prob.det, # detection probability, symptomatic
+                       A_prob.det, # detection probability, asymptomatic
+                       A_prob, # fraction of infections that are asymptomatic 
+                       contact_trace_prob, # probability of contact tracing 
+                       comparator, # character string, assigns a scenario
+                       baseline_S_prob.det, # prob detection w/o tracing (sym)
+                       baseline_A_prob.det,  # prob detection w/o tracing (asym)
+                       test_uptake, # probability tested if traced 
+                       adh, # adherence to isolation (% redux in contacts)
+                       adh2, # adherence to isolation (% redux in contacts)
+                       rel_trans # Redux in number of secondary infections, 
+                                 # detected vs. undetected
+                       ){
   # BASE CASE 
-  params = data.frame(P_RR, P_dur, 
-                      SU_RR = S_RR, SU_dur = S_dur, 
-                      SD_RR = S_RR*rel_trans, SD_dur = S_dur,
-                      AU_RR = A_RR, AU_dur = A_dur,
-                      AD_RR = A_RR*rel_trans, AD_dur = A_dur,
-                      S_prob.det, A_prob.det, A_prob,
-                      symp_contact_trace_prob = contact_trace_prob, asymp_contact_trace_prob = contact_trace_prob)
+  # Here, 'U' refers to those who are not detected and 'D' refers to those 
+  # who are detected. In most cases, new param name is for consistency. 
+  params = data.frame(P_RR, 
+                      P_dur, 
+                      SU_RR = S_RR, 
+                      SU_dur = S_dur, 
+                      SD_RR = S_RR*rel_trans, 
+                      SD_dur = S_dur,
+                      AU_RR = A_RR, 
+                      AU_dur = A_dur,
+                      AD_RR = A_RR*rel_trans, 
+                      AD_dur = A_dur,
+                      S_prob.det, 
+                      A_prob.det, 
+                      A_prob,
+                      symp_contact_trace_prob = contact_trace_prob, 
+                      asymp_contact_trace_prob = contact_trace_prob)
   
   # COUNTERFACTUAL: base case with no contact tracing
-  # If comparison to testing scale-up, also lower testing
-  params_cf = params %>% mutate(symp_contact_trace_prob = 0, asymp_contact_trace_prob = 0,
-                                S_prob.det = ifelse(comparator=="Contact tracing only", S_prob.det, baseline_S_prob.det), 
-                                A_prob.det = ifelse(comparator=="Contact tracing only", A_prob.det, baseline_A_prob.det))
+  params_cf = params %>% 
+    mutate(symp_contact_trace_prob = 0, 
+           asymp_contact_trace_prob = 0,
+           S_prob.det = ifelse(comparator=="Contact tracing only", 
+                               S_prob.det, 
+                               baseline_S_prob.det), 
+           A_prob.det = ifelse(comparator=="Contact tracing only", 
+                               A_prob.det, 
+                               baseline_A_prob.det))
   
   # CONTACT TRACING GEN 1
-  # 1) Increase testing of symptomatic contacts
-  # 2) Decrease transmission according to adherence
-  params_ctrace_1 = params %>% mutate(S_prob.det = test_uptake,
-                                      P_RR = P_RR*(1-adh),
-                                      SU_RR = SU_RR*(1-adh),
-                                      SD_RR = SD_RR*(1-adh),
-                                      AU_RR = AU_RR*(1-adh), 
-                                      AD_RR = AD_RR*(1-adh))
+  # 1) Increase testing of symptomatic contacts (test_uptake)
+  # 2) Decrease transmission according to adherence (adh)
+  params_ctrace_1 = params %>% 
+    mutate(S_prob.det = test_uptake,
+           P_RR       = P_RR*(1-adh),
+           SU_RR      = SU_RR*(1-adh),
+           SD_RR      = SD_RR*(1-adh),
+           AU_RR      = AU_RR*(1-adh), 
+           AD_RR      = AD_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
-  # 1) Increase testing of symptomatic contacts
-  # 2) Decrease transmission according to adherence
-  params_ctrace_2plus = params %>% mutate(S_prob.det = test_uptake,
-                                          P_RR = P_RR*(1-adh2),
-                                          SU_RR = SU_RR*(1-adh2),
-                                          SD_RR = SD_RR*(1-adh2),
-                                          AU_RR = AU_RR*(1-adh2),
-                                          AD_RR = AD_RR*(1-adh2))
+  # 1) Increase testing of symptomatic contacts (test_uptake)
+  # 2) Decrease transmission according to adherence (adh2)
+  params_ctrace_2plus = params %>% 
+    mutate(S_prob.det = test_uptake,
+           P_RR       = P_RR*(1-adh2),
+           SU_RR      = SU_RR*(1-adh2),
+           SD_RR      = SD_RR*(1-adh2),
+           AU_RR      = AU_RR*(1-adh2),
+           AD_RR      = AD_RR*(1-adh2))
   
   # TEST ASYMPTOMATICS GEN 1
   # 1) Increase asymptomatic testing
-  # 2) Allow detection transmission reduction for presymptomatics 
-  params_test_ctrace_1 = params_ctrace_1 %>% mutate(A_prob.det = test_uptake, P_RR = P_RR*.5)
+  # 2) Allow  transmission reduction for detected presymptomatics 
+  params_test_ctrace_1 = params_ctrace_1 %>% 
+    mutate(A_prob.det = test_uptake, 
+           P_RR = P_RR*.5) # drawing from uniform dist, reduce by half???
   
   # TEST ASYMPTOMATICS GEN 2
   # Same as gen 1, but adapting params_ctrace_2plus
-  params_test_ctrace_2_plus = params_ctrace_2plus %>% mutate(A_prob.det = test_uptake, P_RR = P_RR*.5)
+  params_test_ctrace_2_plus = params_ctrace_2plus %>% 
+    mutate(A_prob.det = test_uptake, 
+           P_RR = P_RR*.5)
   
   # RETURN OUTPUT
-  return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus, params_test_ctrace_1, params_test_ctrace_2_plus))
+  return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus, 
+              params_test_ctrace_1, params_test_ctrace_2_plus))
 }
 
 #### calc_R: run over each scenario ####
 # 1) No contact tracing
-# 2) Test symptomatics
-# 3) Test all
-calc_R = function(params_cf, params, params_ctrace_1, params_ctrace_2plus,
-                  params_test_ctrace_1, params_test_ctrace_2_plus) {
+# 2) Test symptomatic 
+# 3) Test all 
+calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
+                  params, # BASE CASE
+                  params_ctrace_1, #CT and test symptomatic
+                  params_ctrace_2plus, #CT and test symptomatic
+                  params_test_ctrace_1, #CT and test all
+                  params_test_ctrace_2_plus #CT and test all 
+                  ) {
   
   # run different methods
-  out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% mutate(Scenario = "No contact \ntracing"),
-                  dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% mutate(Scenario = "Contact tracing\n(Test symptomatic)"),
-                  dom_eigen(params, params_test_ctrace_1, params_test_ctrace_2_plus) %>% mutate(Scenario = "Contact tracing\n(Test all)"))
+  out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% 
+                    mutate(Scenario = "No contact \ntracing"),
+                  dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% 
+                    mutate(Scenario = "Contact tracing\n(Test symptomatic)"),
+                  dom_eigen(params, params_test_ctrace_1, 
+                            params_test_ctrace_2_plus) %>% 
+                    mutate(Scenario = "Contact tracing\n(Test all)"))
   return(out) 
 }
 
@@ -146,7 +208,8 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
     R = max(Re(eigen(mat)$values)),
     
     # detection fraction
-    det_frac = sum(vec[3], vec[6], vec[9], vec[13:15])/sum(vec[2:3], vec[5:6], vec[8:9], vec[10:15]),
+    det_frac = sum(vec[3], vec[6], vec[9], vec[13:15])/sum(vec[2:3], 
+                   vec[5:6], vec[8:9], vec[10:15]),
     
     # transmission by symptom status
     presymp = sum(vec[1:3],vec[10], vec[13])/sum(vec),
@@ -156,29 +219,57 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
 
 
 #### get_trans_probs: Pull together transition probabilities ####
-# by symptom status, detection status, whether originated from contact tracing + gen, whether traced
+# by symptom status, detection status, whether originated from contact tracing 
+# + gen, whether traced
 get_trans_probs = function(params, first_gen = F, ctrace = F) {
     
     # pre-symptomatic
-    psymp_D_T_1  = (1-params$A_prob)*(params$S_prob.det)*(params$P_RR*params$P_dur)*params$symp_contact_trace_prob*first_gen
-    psymp_D_T_2  = (1-params$A_prob)*(params$S_prob.det)*(params$P_RR*params$P_dur)*params$symp_contact_trace_prob*(1-first_gen)
-    psymp_D_NT_noctrace = (1-params$A_prob)*(params$S_prob.det)*(params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
-    psymp_D_NT_ctrace = (1-params$A_prob)*(params$S_prob.det)*(params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*ctrace
-    psymp_U = (1-params$A_prob)*(1-params$S_prob.det)*(params$P_RR*params$P_dur)
+    psymp_D_T_1  =
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$P_RR*params$P_dur)*params$symp_contact_trace_prob*first_gen
+    psymp_D_T_2  = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$P_RR*params$P_dur)*params$symp_contact_trace_prob*(1-first_gen)
+    psymp_D_NT_noctrace = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
+    psymp_D_NT_ctrace = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*ctrace
+    psymp_U = 
+      (1-params$A_prob)*(1-params$S_prob.det)*(params$P_RR*params$P_dur)
   
     # symptomatic
-    symp_D_T_1  = (1-params$A_prob)*(params$S_prob.det)*(params$SD_RR*params$SD_dur)*params$symp_contact_trace_prob*first_gen
-    symp_D_T_2  = (1-params$A_prob)*(params$S_prob.det)*(params$SD_RR*params$SD_dur)*params$symp_contact_trace_prob*(1-first_gen)
-    symp_D_NT_noctrace = (1-params$A_prob)*(params$S_prob.det)*(params$SD_RR*params$SD_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
-    symp_D_NT_ctrace = (1-params$A_prob)*(params$S_prob.det)*(params$SD_RR*params$SD_dur)*(1-params$symp_contact_trace_prob)*(ctrace)
-    symp_U = (1-params$A_prob)*(1-params$S_prob.det)*(params$SU_RR*params$SU_dur)
+    symp_D_T_1  = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$SD_RR*params$SD_dur)*params$symp_contact_trace_prob*first_gen
+    symp_D_T_2  = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$SD_RR*params$SD_dur)*params$symp_contact_trace_prob*(1-first_gen)
+    symp_D_NT_noctrace = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$SD_RR*params$SD_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
+    symp_D_NT_ctrace = 
+      (1-params$A_prob)*(params$S_prob.det)*
+      (params$SD_RR*params$SD_dur)*(1-params$symp_contact_trace_prob)*(ctrace)
+    symp_U = 
+      (1-params$A_prob)*(1-params$S_prob.det)*(params$SU_RR*params$SU_dur)
     
     # asymptomatic
-    asymp_D_T_1  = (params$A_prob)*(params$A_prob.det)*(params$AD_RR*params$AD_dur)*params$asymp_contact_trace_prob*first_gen
-    asymp_D_T_2  = (params$A_prob)*(params$A_prob.det)*(params$AD_RR*params$AD_dur)*params$asymp_contact_trace_prob*(1-first_gen)
-    asymp_D_NT_noctrace = (params$A_prob)*(params$A_prob.det)*(params$AD_RR*params$AD_dur)*(1-params$asymp_contact_trace_prob)*(1-ctrace)
-    asymp_D_NT_ctrace = (params$A_prob)*(params$A_prob.det)*(params$AD_RR*params$AD_dur)*(1-params$asymp_contact_trace_prob)*ctrace
-    asymp_U = (params$A_prob)*(1-params$A_prob.det)*(params$AU_RR*params$AU_dur)
+    asymp_D_T_1  = 
+      (params$A_prob)*(params$A_prob.det)*
+      (params$AD_RR*params$AD_dur)*params$asymp_contact_trace_prob*first_gen
+    asymp_D_T_2  = 
+      (params$A_prob)*(params$A_prob.det)*
+      (params$AD_RR*params$AD_dur)*params$asymp_contact_trace_prob*(1-first_gen)
+    asymp_D_NT_noctrace = 
+      (params$A_prob)*(params$A_prob.det)*
+      (params$AD_RR*params$AD_dur)*(1-params$asymp_contact_trace_prob)*(1-ctrace)
+    asymp_D_NT_ctrace = 
+      (params$A_prob)*(params$A_prob.det)*
+      (params$AD_RR*params$AD_dur)*(1-params$asymp_contact_trace_prob)*ctrace
+    asymp_U = 
+      (params$A_prob)*(1-params$A_prob.det)*(params$AU_RR*params$AU_dur)
   
   # return values
   trans = c(
@@ -228,7 +319,8 @@ make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
            Presymptomatic = presymp*ratio*Rt, 
            
            # set as factor for cleaning
-           Scenario2 = factor(Scenario, levels = c("No contact \ntracing", "Testing scale-up", 
+           Scenario2 = factor(Scenario, levels = 
+                                c("No contact \ntracing", "Testing scale-up", 
            "Contact tracing\n(Test symptomatic)", "Contact tracing\n(Test all)")))
 
   # TOP ROW
@@ -239,7 +331,8 @@ make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
                          "Fraction of current physical distancing needed for \n R(t)<1 with contact tracing"),
            var3 = factor(var2, levels = c("R(t) with contact tracing",
                                           "Fraction of current physical distancing needed for \n R(t)<1 with contact tracing")),
-           txt =  paste(Scenario2, ": \n x=", round(var,2), "\n y=",  round(value,2), sep = "")) %>% 
+           txt =  paste(Scenario2, ": \n x=", round(var,2), "\n y=",  
+                        round(value,2), sep = "")) %>% 
     filter(Scenario != "No contact \ntracing") 
   
   # make plot
@@ -247,26 +340,32 @@ make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
   a = ggplot(R1, aes(x = var, y = value)) +
     geom_line(lwd = 1, aes(group = Scenario2, col = Scenario2, text = txt)) + 
     theme_minimal(base_size = 20) +
-    geom_point(data = R1 %>% filter(point=="point"), aes(x = var, y = value, group = Scenario2, text = txt), size = 2, col = "black") + 
+    geom_point(data = R1 %>% filter(point=="point"), 
+               aes(x = var, y = value, group = Scenario2, text = txt), 
+               size = 2, col = "black") + 
     facet_wrap(.~var3, ncol = 2, scales = "free_y") + t +
-    scale_color_brewer(name = "", palette = "Set1") + labs(x = xaxis, y = "", title = "") + ylim(0, ymax)
+    scale_color_brewer(name = "", palette = "Set1") + 
+    labs(x = xaxis, y = "", title = "") + ylim(0, ymax)
   
   # BOTTOM LEFT
   # process data
   R2 = R_plot %>% filter(!Scenario%in%c("No contact \ntracing", "Testing scale-up")) %>% 
     mutate(temp = "Fraction of confirmed cases who \nare known contacts",
-           txt = paste(Scenario2, ": \n x=", round(var, 2), "\n y=",  round(det_frac, 2), sep = ""))
+           txt = paste(Scenario2, ": \n x=", round(var, 2), "\n y=",  
+                       round(det_frac, 2), sep = ""))
   
   # make plot
   b = ggplot(R2, 
              aes(x = var, y = det_frac, group = Scenario2, col = Scenario2,
                                                            text = txt)) + 
     geom_line(lwd = 1) + 
-    geom_point(data = R2 %>% filter(point=="point"), aes(x = var, y = det_frac, group = Scenario2, 
-                                                             text = txt), size = 2, col = "black") + 
+    geom_point(data = R2 %>% filter(point=="point"), 
+               aes(x = var, y = det_frac, group = Scenario2, text = txt), 
+               size = 2, col = "black") + 
     theme_minimal(base_size = 20) + 
     scale_color_brewer(name = "", palette = "Set1") + 
-    labs(x = xaxis, y = "", title = "") + t + facet_grid(.~temp) + ylim(0,100) + theme(legend.position='none') + ylim(0,1)
+    labs(x = xaxis, y = "", title = "") + t + facet_grid(.~temp) + 
+    ylim(0,100) + theme(legend.position='none') + ylim(0,1)
   
   # BOTTOM RIGHT
   # process data
