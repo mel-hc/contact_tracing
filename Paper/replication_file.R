@@ -11,8 +11,8 @@
 #### HOUSEKEEPING ####
 
 # set working directory
-setwd(...)
-source(".../App/contact_tracing_v5.R")
+setwd("/Users/melaniechitwood/Documents/GitHub/contact_tracing")
+source("App/contact_tracing_v5.R")
 
 # libraries
 library(tidyverse)
@@ -83,10 +83,14 @@ get_R_paper = function(P_RR = 1,
       # so the percent reduction does not depend on the base value of R(t)
       dplyr::mutate(maxR = max(R), perc_red = 100*(1-R/max(R)))  %>% ungroup() %>%
       # label variables
-      dplyr::mutate(program = ifelse(Scenario == "Contact tracing\n(Test all)", "Test all", "No contact tracing"),
-                    program = ifelse(Scenario == "Contact tracing\n(Test symptomatic)", "Test symptomatic", program),
-                    program = factor(program, levels = c("No contact tracing", "Test symptomatic", "Test all")),
-        var = paste(adh*100, "% isolation and \n quarantine efficacy", sep = ""))
+      dplyr::mutate(program = ifelse(Scenario == "Contact tracing\n(Test all)", 
+                                     "Test all", "No contact tracing"),
+                    program = ifelse(Scenario == "Contact tracing\n(Test symptomatic)", 
+                                     "Test symptomatic", program),
+                    program = factor(program, levels = c("No contact tracing", 
+                                                         "Test symptomatic", 
+                                                         "Test all")),
+        var = paste(adh*100, "% isolation and quarantine efficacy", sep = ""))
     return(a)
     
   }

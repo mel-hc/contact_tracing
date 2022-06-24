@@ -39,12 +39,26 @@ get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
     assign(xaxis, var[i])
     
     # make parameter vectors
-    z = make_params(P_RR, P_dur, S_RR, S_dur, A_RR, A_dur, S_prob.det,
-                    A_prob.det, A_prob, contact_trace_prob,
-                    comparator, baseline_S_prob.det, baseline_A_prob.det, 
-                    test_uptake, adh, adh2, rel_trans)
+    z = make_params(P_RR, 
+                    P_dur, 
+                    S_RR, 
+                    S_dur, 
+                    A_RR, 
+                    A_dur, 
+                    S_prob.det,
+                    A_prob.det,
+                    A_prob, 
+                    contact_trace_prob,
+                    comparator, 
+                    baseline_S_prob.det, 
+                    baseline_A_prob.det, 
+                    test_uptake, 
+                    adh, 
+                    adh2, 
+                    rel_trans)
     
-    a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
+    a = bind_rows(a, 
+                  calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
                     mutate(
                       # store variable values
                       var = var[i], 
@@ -61,7 +75,7 @@ get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
 # 1) Take in model inputs (see above)
 # 2) Return set of parameters for each scenario
   # Scenarios: 
-  # Counteractual: No contact tracing
+  # Counterfactual: No contact tracing
   # Base Case: Symptomatic testing, contact tracing
   # 
 make_params = function(P_RR, # relative infectiousness presym to symp
