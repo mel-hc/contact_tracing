@@ -6,15 +6,14 @@
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by symptom type
 
-get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
+get_R = function(P_RR, # relative infectiousness presymptomatic to High Contact
                  P_dur, # duration of infectiousness, presymptomatic
-                 HiMSM_RR, # infectiousness of symptomatic group (set = 1)
-                 HiMSM_dur, # duration of infectiousness, symptomatic
-                 LoMSM_RR, # relative infectiousness asymptomatic to symptomatic
-                 LoMSM_dur, # duration of infectiousness, asymptomatic 
-                 HiMSM_prob.det, # detection probability, symptomatic
-                 LoMSM_prob.det, # detection probability, asymptomatic
-                 LoMSM_prob, # fraction of infections that are asymptomatic 
+                 HiMSM_RR, # infectiousness of High Contact group (set = 1)
+                 LoMSM_RR, # relative [infectiousness]? Low Contact to High Contact
+                 duration, # duration of infectiousness
+                 HiMSM_prob.det, # detection probability, High Contact
+                 LoMSM_prob.det, # detection probability, Low Contact
+                 LoMSM_prob, # fraction of infections that are Low Contact 
                  contact_trace_prob, # probability of contact tracing 
                  comparator, # character string, assigns a scenario
                  baseline_HiMSM_prob.det, # probability detection w/o tracing (sym)
@@ -42,9 +41,8 @@ get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
     z = make_params(P_RR, 
                     P_dur, 
                     HiMSM_RR, 
-                    HiMSM_dur, 
+                    duration, 
                     LoMSM_RR, 
-                    LoMSM_dur, 
                     HiMSM_prob.det,
                     LoMSM_prob.det,
                     LoMSM_prob, 
@@ -76,17 +74,16 @@ get_R = function(P_RR, # relative infectiousness presymptomatic to symptomatic
 # 2) Return set of parameters for each scenario
   # Scenarios: 
   # Counterfactual: No contact tracing
-  # Base Case: Symptomatic testing, contact tracing
+  # Base Case: High Contact testing, contact tracing
   # 
 make_params = function(P_RR, # relative infectiousness presym to symp
                        P_dur, # duration of infectiousness, presymp
-                       HiMSM_RR, # infectiousness of symptomatic group (set = 1)
-                       HiMSM_dur, # duration of infectiousness, symptomatic
+                       HiMSM_RR, # infectiousness of High Contact group (set = 1)
+                       duration, # duration of infectiousness
                        LoMSM_RR, # relative infectiousness asym to sym
-                       LoMSM_dur, # duration of infectiousness, asymptomatic 
-                       HiMSM_prob.det, # detection probability, symptomatic
-                       LoMSM_prob.det, # detection probability, asymptomatic
-                       LoMSM_prob, # fraction of infections that are asymptomatic 
+                       HiMSM_prob.det, # detection probability, High Contact
+                       LoMSM_prob.det, # detection probability, Low Contact
+                       LoMSM_prob, # fraction of infections that are Low Contact 
                        contact_trace_prob, # probability of contact tracing 
                        comparator, # character string, assigns a scenario
                        baseline_HiMSM_prob.det, # prob detection w/o tracing (sym)
@@ -102,24 +99,21 @@ make_params = function(P_RR, # relative infectiousness presym to symp
   # who are detected. In most cases, new param name is for consistency. 
   params = data.frame(P_RR, 
                       P_dur, 
-                      HiU_RR = HiMSM_RR, 
-                      HiU_dur = HiMSM_dur, 
-                      HiD_RR = HiMSM_RR*rel_trans, 
-                      HiD_dur = HiMSM_dur,
-                      LoU_RR = LoMSM_RR, 
-                      LoU_dur = LoMSM_dur,
-                      LoD_RR = LoMSM_RR*rel_trans, 
-                      LoD_dur = LoMSM_dur,
+                      HiMSM_U_RR = HiMSM_RR, 
+                      duration = duration, 
+                      HiMSM_D_RR = HiMSM_RR*rel_trans, 
+                      LoMSM_U_RR = LoMSM_RR, 
+                      LoMSM_D_RR = LoMSM_RR*rel_trans, 
                       HiMSM_prob.det, 
                       LoMSM_prob.det, 
                       LoMSM_prob,
-                      symp_contact_trace_prob = contact_trace_prob, 
-                      asymp_contact_trace_prob = contact_trace_prob)
+                      HiMSM_contact_trace_prob = contact_trace_prob, 
+                      LoMSM_contact_trace_prob = contact_trace_prob)
   
   # COUNTERFACTUAL: base case with no contact tracing
   params_cf = params %>% 
-    mutate(symp_contact_trace_prob = 0, 
-           asymp_contact_trace_prob = 0,
+    mutate(HiMSM_contact_trace_prob = 0, 
+           LoMSM_contact_trace_prob = 0,
            HiMSM_prob.det = ifelse(comparator=="Contact tracing only", 
                                HiMSM_prob.det, 
                                baseline_HiMSM_prob.det), 
@@ -128,35 +122,35 @@ make_params = function(P_RR, # relative infectiousness presym to symp
                                baseline_LoMSM_prob.det))
   
   # CONTACT TRACING GEN 1
-  # 1) Increase testing of symptomatic contacts (test_uptake)
+  # 1) Increase testing of High Contact contacts (test_uptake)
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
            P_RR       = P_RR*(1-adh),
-           HiU_RR      = HiU_RR*(1-adh),
-           HiD_RR      = HiD_RR*(1-adh),
-           LoU_RR      = LoU_RR*(1-adh), 
-           LoD_RR      = LoD_RR*(1-adh))
+           HiMSM_U_RR      = HiMSM_U_RR*(1-adh),
+           HiMSM_D_RR      = HiMSM_D_RR*(1-adh),
+           LoMSM_U_RR      = LoMSM_U_RR*(1-adh), 
+           LoMSM_D_RR      = LoMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
-  # 1) Increase testing of symptomatic contacts (test_uptake)
+  # 1) Increase testing of High Contact contacts (test_uptake)
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
            P_RR       = P_RR*(1-adh2),
-           HiU_RR      = HiU_RR*(1-adh2),
-           HiD_RR      = HiD_RR*(1-adh2),
-           LoU_RR      = LoU_RR*(1-adh2),
-           LoD_RR      = LoD_RR*(1-adh2))
+           HiMSM_U_RR      = HiMSM_U_RR*(1-adh2),
+           HiMSM_D_RR      = HiMSM_D_RR*(1-adh2),
+           LoMSM_U_RR      = LoMSM_U_RR*(1-adh2),
+           LoMSM_D_RR      = LoMSM_D_RR*(1-adh2))
   
-  # TEST ASYMPTOMATICS GEN 1
-  # 1) Increase asymptomatic testing
+  # TEST Low Contact GEN 1
+  # 1) Increase Low Contact testing
   # 2) Allow  transmission reduction for detected presymptomatics 
   params_test_ctrace_1 = params_ctrace_1 %>% 
     mutate(LoMSM_prob.det = test_uptake, 
            P_RR = P_RR*.5) # drawing from uniform dist, reduce by half???
   
-  # TEST ASYMPTOMATICS GEN 2
+  # TEST Low Contact GEN 2
   # Same as gen 1, but adapting params_ctrace_2plus
   params_test_ctrace_2_plus = params_ctrace_2plus %>% 
     mutate(LoMSM_prob.det = test_uptake, 
@@ -169,14 +163,14 @@ make_params = function(P_RR, # relative infectiousness presym to symp
 
 #### calc_R: run over each scenario ####
 # 1) No contact tracing (params_cf)
-# 2) Test symptomatic (params and params_ctrace_XX)
+# 2) Test High Contact (params and params_ctrace_XX)
 # 3) Test all (params and params_test_ctrace_XX)
 calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
                  
                   params, # BASE CASE (first generation for CT scenarios)
                   
-                  params_ctrace_1, #CT and test symptomatic
-                  params_ctrace_2plus, #CT and test symptomatic
+                  params_ctrace_1, #CT and test High Contact
+                  params_ctrace_2plus, #CT and test High Contact
                   
                   params_test_ctrace_1, #CT and test all
                   params_test_ctrace_2_plus #CT and test all 
@@ -186,7 +180,7 @@ calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
   out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% 
                     mutate(Scenario = "No contact \ntracing"),
                   dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% 
-                    mutate(Scenario = "Contact tracing\n(Test symptomatic)"),
+                    mutate(Scenario = "Contact tracing\n(Test High Contact)"),
                   dom_eigen(params, params_test_ctrace_1, 
                             params_test_ctrace_2_plus) %>% 
                     mutate(Scenario = "Contact tracing\n(Test all)"))
@@ -231,7 +225,7 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
     # transmission by symptom status
     presymp = sum(vec[1:3],vec[10], vec[13])/sum(vec),
     symp = sum(vec[4:6], vec[11], vec[14])/sum(vec),
-    asymp = sum(vec[7:9], vec[12], vec[15])/sum(vec)))
+    LoMSM = sum(vec[7:9], vec[12], vec[15])/sum(vec)))
 }
 
 
@@ -254,63 +248,73 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
     # pre-symptomatic
     psymp_D_T_1  =
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$P_RR*params$P_dur)*params$symp_contact_trace_prob*first_gen
+      (params$P_RR*params$P_dur)*params$HiMSM_contact_trace_prob*first_gen
     psymp_D_T_2  = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$P_RR*params$P_dur)*params$symp_contact_trace_prob*(1-first_gen)
+      (params$P_RR*params$P_dur)*params$HiMSM_contact_trace_prob*(1-first_gen)
     psymp_D_NT_noctrace = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
+      (params$P_RR*params$P_dur)*(1-params$HiMSM_contact_trace_prob)*(1-ctrace)
     psymp_D_NT_ctrace = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$P_RR*params$P_dur)*(1-params$symp_contact_trace_prob)*ctrace
+      (params$P_RR*params$P_dur)*(1-params$HiMSM_contact_trace_prob)*ctrace
     psymp_U = 
       (1-params$LoMSM_prob)*(1-params$HiMSM_prob.det)*(params$P_RR*params$P_dur)
   
-    # symptomatic
-    symp_D_T_1  = 
+    # High Contact
+    HiMSM_D_T_1  = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$HiD_RR*params$HiD_dur)*params$symp_contact_trace_prob*first_gen
-    symp_D_T_2  = 
+      (params$HiMSM_D_RR*params$duration)*
+      params$HiMSM_contact_trace_prob*first_gen
+    HiMSM_D_T_2  = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$HiD_RR*params$HiD_dur)*params$symp_contact_trace_prob*(1-first_gen)
-    symp_D_NT_noctrace = 
+      (params$HiMSM_D_RR*params$duration)*
+      params$HiMSM_contact_trace_prob*(1-first_gen)
+    HiMSM_D_NT_noctrace = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$HiD_RR*params$HiD_dur)*(1-params$symp_contact_trace_prob)*(1-ctrace)
-    symp_D_NT_ctrace = 
+      (params$HiMSM_D_RR*params$duration)*
+      (1-params$HiMSM_contact_trace_prob)*(1-ctrace)
+    HiMSM_D_NT_ctrace = 
       (1-params$LoMSM_prob)*(params$HiMSM_prob.det)*
-      (params$HiD_RR*params$HiD_dur)*(1-params$symp_contact_trace_prob)*(ctrace)
-    symp_U = 
-      (1-params$LoMSM_prob)*(1-params$HiMSM_prob.det)*(params$HiU_RR*params$HiU_dur)
+      (params$HiMSM_D_RR*params$duration)*
+      (1-params$HiMSM_contact_trace_prob)*(ctrace)
+    HiMSM_U = 
+      (1-params$LoMSM_prob)*(1-params$HiMSM_prob.det)*
+      (params$HiMSM_U_RR*params$duration)
     
-    # asymptomatic
-    asymp_D_T_1  = 
+    # Low Contact
+    LoMSM_D_T_1  = 
       (params$LoMSM_prob)*(params$LoMSM_prob.det)*
-      (params$LoD_RR*params$LoD_dur)*params$asymp_contact_trace_prob*first_gen
-    asymp_D_T_2  = 
+      (params$LoMSM_D_RR*params$duration)*params$LoMSM_contact_trace_prob*
+      first_gen
+    LoMSM_D_T_2  = 
       (params$LoMSM_prob)*(params$LoMSM_prob.det)*
-      (params$LoD_RR*params$LoD_dur)*params$asymp_contact_trace_prob*(1-first_gen)
-    asymp_D_NT_noctrace = 
+      (params$LoMSM_D_RR*params$duration)*params$LoMSM_contact_trace_prob*
+      (1-first_gen)
+    LoMSM_D_NT_noctrace = 
       (params$LoMSM_prob)*(params$LoMSM_prob.det)*
-      (params$LoD_RR*params$LoD_dur)*(1-params$asymp_contact_trace_prob)*(1-ctrace)
-    asymp_D_NT_ctrace = 
+      (params$LoMSM_D_RR*params$duration)*
+      (1-params$LoMSM_contact_trace_prob)*(1-ctrace)
+    LoMSM_D_NT_ctrace = 
       (params$LoMSM_prob)*(params$LoMSM_prob.det)*
-      (params$LoD_RR*params$LoD_dur)*(1-params$asymp_contact_trace_prob)*ctrace
-    asymp_U = 
-      (params$LoMSM_prob)*(1-params$LoMSM_prob.det)*(params$LoU_RR*params$LoU_dur)
+      (params$LoMSM_D_RR*params$duration)*
+      (1-params$LoMSM_contact_trace_prob)*ctrace
+    LoMSM_U = 
+      (params$LoMSM_prob)*(1-params$LoMSM_prob.det)*
+      (params$LoMSM_U_RR*params$duration)
   
   # return values
   trans = c(
     # not traced
     psymp_U, psymp_D_NT_noctrace, psymp_D_NT_ctrace, 
-    symp_U, symp_D_NT_noctrace, symp_D_NT_ctrace,
-    asymp_U, asymp_D_NT_noctrace,asymp_D_NT_ctrace,
+    HiMSM_U, HiMSM_D_NT_noctrace, HiMSM_D_NT_ctrace,
+    LoMSM_U, LoMSM_D_NT_noctrace,LoMSM_D_NT_ctrace,
     
     # traced first gen
-    psymp_D_T_1, symp_D_T_1, asymp_D_T_1,
+    psymp_D_T_1, HiMSM_D_T_1, LoMSM_D_T_1,
     
     # traced second gen
-    psymp_D_T_2,  symp_D_T_2, asymp_D_T_2)
+    psymp_D_T_2,  HiMSM_D_T_2, LoMSM_D_T_2)
     
 }
 
@@ -342,14 +346,14 @@ make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
            c_margin = ifelse(c_margin < 0, 0, c_margin),
            
            # percent from each group
-           Symptomatic = symp*ratio*Rt,
-           Asymptomatic = asymp*ratio*Rt,
+           HiMSM_pct = symp*ratio*Rt,
+           LoMSM_pct = LoMSM*ratio*Rt,
            Presymptomatic = presymp*ratio*Rt, 
            
            # set as factor for cleaning
            Scenario2 = factor(Scenario, levels = 
                                 c("No contact \ntracing", "Testing scale-up", 
-           "Contact tracing\n(Test symptomatic)", "Contact tracing\n(Test all)")))
+           "Contact tracing\n(Test High Contact)", "Contact tracing\n(Test all)")))
 
   # TOP ROW
   # process data
@@ -398,7 +402,7 @@ make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
   # BOTTOM RIGHT
   # process data
   R3 = R_plot %>% filter(point=="point") %>%
-    gather(chk, value, Asymptomatic, Presymptomatic, Symptomatic) %>%
+    gather(chk, value, LoMSM_pct, Presymptomatic, HiMSM_pct) %>%
     mutate(txt = paste(chk, ": ", round(value, 2), sep = ""),
            temp = "R(t) by symptom status")
   
