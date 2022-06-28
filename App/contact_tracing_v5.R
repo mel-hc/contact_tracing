@@ -168,13 +168,16 @@ make_params = function(P_RR, # relative infectiousness presym to symp
 }
 
 #### calc_R: run over each scenario ####
-# 1) No contact tracing
-# 2) Test symptomatic 
-# 3) Test all 
+# 1) No contact tracing (params_cf)
+# 2) Test symptomatic (params and params_ctrace_XX)
+# 3) Test all (params and params_test_ctrace_XX)
 calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
-                  params, # BASE CASE
+                 
+                  params, # BASE CASE (first generation for CT scenarios)
+                  
                   params_ctrace_1, #CT and test symptomatic
                   params_ctrace_2plus, #CT and test symptomatic
+                  
                   params_test_ctrace_1, #CT and test all
                   params_test_ctrace_2_plus #CT and test all 
                   ) {
@@ -235,6 +238,17 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
 #### get_trans_probs: Pull together transition probabilities ####
 # by symptom status, detection status, whether originated from contact tracing 
 # + gen, whether traced
+
+# This is our next generation matrix -- a way of representing our compartments
+# as a matrix. In each compartment, what is happening in the next generation?
+
+# This maps onto an estimate of Rt -- how many infections per infected in the 
+# next generation. The matrix lets us aggregate of multiple groups
+
+# see wiki pages on next generation matrices and eigenvalues 
+
+# Here, we calculate the transition probabilities -- e.g. what should go in 
+# the next generation matrix. It should be 6x6 (double check)
 get_trans_probs = function(params, first_gen = F, ctrace = F) {
     
     # pre-symptomatic
