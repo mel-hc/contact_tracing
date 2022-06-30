@@ -149,14 +149,12 @@ make_params = function(SAR, # secondary attack rate
   # 1) Increase Low Contact testing
   # 2) Allow  transmission reduction for detected presymptomatics 
   params_test_ctrace_1 = params_ctrace_1 %>% 
-    mutate(LoMSM_prob.det = test_uptake, 
-           P_RR = P_RR*.5) # drawing from uniform dist, reduce by half???
+    mutate(LoMSM_prob.det = test_uptake) # drawing from uniform dist, reduce by half???
   
   # CONTACT TRACTING AND PASSIVE TESTING GEN 2
   # Same as gen 1, but adapting params_ctrace_2plus
   params_test_ctrace_2_plus = params_ctrace_2plus %>% 
-    mutate(LoMSM_prob.det = test_uptake, 
-           P_RR = P_RR*.5)
+    mutate(LoMSM_prob.det = test_uptake)
   
   # RETURN OUTPUT
   return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus, 
