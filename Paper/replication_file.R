@@ -1,12 +1,12 @@
-#************************************ Replication File ************************************#
-#                                                                                          #
-#                                                                                          #
-# This file replicates figures and results for the pre-print in this folder.               # 
-# Code will be updated as paper is edited.                                                 #
-# 1) Define functions to run model & make plots                                            #
-# 2) Make and store plots                                                                  #
-# 3) Run code that informs ##s in paper                                                    #
-#******************************************************************************************#
+#************************************ Replication File *********************#
+#                                                                           #
+#                                                                           #
+# This file replicates figures and results for the pre-print in this folder.# 
+# Code will be updated as paper is edited.                                  #
+# 1) Define functions to run model & make plots                             #
+# 2) Make and store plots                                                   #
+# 3) Run code that informs ##s in paper                                     #
+#***************************************************************************#
 
 #### HOUSEKEEPING ####
 
@@ -24,26 +24,28 @@ library(gridExtra)
 # 2) call make_params to set up transition matrix
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by symptom type
-get_R_paper = function(P_RR = 1, 
-                       P_dur = 1.5, 
-                       S_RR = 1, 
-                       S_dur = 4, 
-                       A_RR = .7, 
-                       A_dur = 5.5, 
-                       A_prob.det = 0.1, 
-                       A_prob, 
-                       contact_trace_prob = 0.9,
-                       comparator = "Contact tracing only", 
-                       baseline_S_prob.det = 0.2, 
-                       baseline_A_prob.det = 0.05, 
-                       test_uptake = 0.9, 
-                       rel_trans = 0.5){
-  
+get_R_paper = function(SAR = 0.2,
+                       HiMSM_contacts = 10/14, # 10 contacts in 14 days
+                       LoMSM_contacts = 2/14,  # 2 contacts in 14 days
+                       duration = 21, # Estimated time from lesion appearance 
+                                      # to fully healed (no scabs)
+                       LoMSM_prob = 0.6, # very made up
+                       # the above parameters work out to an R0=1.5 for MSM pop.
+                       comparator = "Contact tracing only",
+                       baseline_HiMSM_prob.det = 0.2, 
+                       baseline_LoMSM_prob.det = 0.05, 
+                       test_uptake = 0.5, 
+                       rel_trans = 0.5)
+{
   # parameters over which to vary
-  param_vary = data.frame(expand.grid(S_prob.det = seq(.1, .9, length.out = 9),
-                                      A_prob = c(.2, .4),
-                                      adh = c(.3, .6, .9),
-                                      contact_trace_prob = seq(.1, .9, length.out = 9))) 
+  param_vary = data.frame(
+                expand.grid(
+                  HiMSM_prob.det = seq(0.1, 0.9, length.out = 9),
+                  LoMSM_prob.det = seq(0.1, 0.9, length.out = 9),                    
+                  adh = c(0.75, 0.8, 0.95),
+                  adh2 = c(0.75, 0.8, 0.95),
+                  vax = c(0.1, 0.3, 0.5), # FIX LATER, should increase over time
+                  contact_trace_prob = seq(0.1, 0.9, length.out = 9))) 
   
     # create data frame to store output 
     a = data.frame()
@@ -53,21 +55,32 @@ get_R_paper = function(P_RR = 1,
       
       # make parameter vectors
       z = make_params(
-        # passed in
-        P_RR = P_RR, P_dur = P_dur, S_RR = S_RR, S_dur = S_dur, A_RR = A_RR, 
-        A_dur = A_dur, A_prob.det = A_prob.det, comparator = comparator, 
-        baseline_S_prob.det = baseline_S_prob.det, baseline_A_prob.det = baseline_A_prob.det, 
-        test_uptake = test_uptake, rel_trans = rel_trans,
+        SAR = SAR, 
+        HiMSM_contacts = HiMSM_contacts, 
+        LoMSM_contacts = LoMSM_contacts,
+        duration = duration,  
+        LoMSM_prob = LoMSM_prob,
+        comparator = comparator, 
+        baseline_HiMSM_prob.det = baseline_HiMSM_prob.det, 
+        baseline_LoMSM_prob.det = baseline_LoMSM_prob.det,  
+        test_uptake = test_uptake, 
+        rel_trans = rel_trans,
+# varied over different iterations
+        HiMSM_prob.det = param_vary$HiMSM_prob.det[i], 
+        LoMSM_prob.det = param_vary$LoMSM_prob.det[i], 
+        adh = param_vary$adh[i],
+        adh2 = param_vary$adh2[i], 
+        vax = param_vary$vax[i], 
+        contact_trace_prob = param_vary$contact_trace_prob[i])
         
-        # varied over different iterations
-        S_prob.det = param_vary$S_prob.det[i], A_prob = param_vary$A_prob[i], 
-        adh = param_vary$adh[i], adh2 = param_vary$adh[i], contact_trace_prob = param_vary$contact_trace_prob[i])
-      
-      a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
+  a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
                       mutate(
                         # store variable values
-                        S_prob.det = param_vary$S_prob.det[i], A_prob = param_vary$A_prob[i], 
-                        adh = param_vary$adh[i], adh2 = param_vary$adh[i], 
+                        HiMSM_prob.det = param_vary$HiMSM_prob.det[i], 
+                        LoMSM_prob.det = param_vary$LoMSM_prob.det[i], 
+                        adh = param_vary$adh[i],
+                        adh2 = param_vary$adh2[i], 
+                        vax = param_vary$vax[i], 
                         contact_trace_prob = param_vary$contact_trace_prob[i]))
       
     }
@@ -76,7 +89,7 @@ get_R_paper = function(P_RR = 1,
     # calculate relative R
     # make variable labels
     a = a %>%
-      dplyr::group_by(S_prob.det, contact_trace_prob, A_prob, adh) %>%
+      dplyr::group_by(HiMSM_prob.det, contact_trace_prob, adh) %>%
       # find maximum R
       # then take ratio compared to this
       # recall eigenvalues scale linearly
@@ -94,6 +107,8 @@ get_R_paper = function(P_RR = 1,
     return(a)
     
   }
+
+## JIYE TO MAKE ADDITIONAL CHANGES HERE
 
 #### MAKE HEATMAP ####
 make_heatmap = function(R, title, perc_asymp = 0.4, save = T, show_legend = T) {
