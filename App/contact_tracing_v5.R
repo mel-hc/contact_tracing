@@ -105,14 +105,12 @@ make_params = function(SAR, # secondary attack rate
                       HiMSM_prob.det, 
                       LoMSM_prob.det, 
                       LoMSM_prob,
-                      HiMSM_contact_trace_prob = contact_trace_prob, 
-                      LoMSM_contact_trace_prob = contact_trace_prob,
+                      contact_trace_prob,
                       vax)
   
   # COUNTERFACTUAL: base case with no contact tracing
   params_cf = params %>% 
-    mutate(HiMSM_contact_trace_prob = 0, 
-           LoMSM_contact_trace_prob = 0,
+    mutate(contact_trace_prob = 0, 
            HiMSM_prob.det = ifelse(comparator=="Contact tracing only", 
                                HiMSM_prob.det, 
                                baseline_HiMSM_prob.det), 
@@ -240,28 +238,28 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
 
     # High Contact group
     HiMSM_D_T_1  = # first gen detected through contact tracing
-      params$HiMSM_contact_trace_prob*first_gen* # contact tracing prob
+      params$contact_trace_prob*first_gen* # contact tracing prob
       (params$HiMSM_prob.det)* # detection rate
       (1-params$LoMSM_prob)* #prob in the HiMSM pop. 
       (params$HiMSM_D_RR*params$duration*(1-params$vax)) # Rt (RR * duration)
 
     HiMSM_D_T_2  = # second gen detected through contact tracing
-      params$HiMSM_contact_trace_prob*(1-first_gen)*
+      params$contact_trace_prob*(1-first_gen)*
       (1-params$LoMSM_prob)* 
       (params$HiMSM_prob.det)*
       (params$HiMSM_D_RR*params$duration*(1-params$vax)) 
 
     HiMSM_D_NT_noctrace = # gen 1 not traced, gen 2 not traced
-      (1-params$HiMSM_contact_trace_prob)* # prob. gen 1 not contact traced
-      (1-params$LoMSM_prob)*
+      (1-params$contact_trace_prob)* # prob. gen 1 not contact traced
       (params$HiMSM_prob.det)*
+      (1-params$LoMSM_prob)*
       (1-ctrace)* # prob. gen 2 not contact traced
-      (params$HiMSM_D_RR*params$duration*(1-params$vax))* 
+      (params$HiMSM_D_RR*params$duration*(1-params$vax))
 
     HiMSM_D_NT_ctrace = # gen 1 not traced, gen 2 traced
-      (1-params$HiMSM_contact_trace_prob)*
-      (1-params$LoMSM_prob)*
+      (1-params$contact_trace_prob)*
       (params$HiMSM_prob.det)*
+      (1-params$LoMSM_prob)*
       (ctrace)* # prob. gen 2 contact traced
       (params$HiMSM_D_RR*params$duration*(1-params$vax))
     
@@ -272,28 +270,28 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
     
     # Low Contact group
     LoMSM_D_T_1  = 
-      params$LoMSM_contact_trace_prob*
+      params$contact_trace_prob*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       (params$LoMSM_D_RR*params$duration*(1-params$vax))*
       first_gen
     
     LoMSM_D_T_2  = 
-      params$LoMSM_contact_trace_prob*
+      params$contact_trace_prob*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       (params$LoMSM_D_RR*params$duration*(1-params$vax))*
       (1-first_gen)
     
     LoMSM_D_NT_noctrace = 
-      (1-params$LoMSM_contact_trace_prob)*
+      (1-params$contact_trace_prob)*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       (1-ctrace)*
       (params$LoMSM_D_RR*params$duration*(1-params$vax))
 
     LoMSM_D_NT_ctrace = 
-      (1-params$LoMSM_contact_trace_prob)*
+      (1-params$contact_trace_prob)*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       ctrace*
