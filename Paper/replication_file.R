@@ -32,7 +32,7 @@ get_R_paper = function(SAR = 0.2,
                        LoMSM_prob = 0.6, # very made up
                        # the above parameters work out to an R0=1.5 for MSM pop.
                        comparator = "Contact tracing only",
-                       baseline_HiMSM_prob.det = 0.2, 
+                       baseline_HiMSM_prob.det = 0.1, 
                        baseline_LoMSM_prob.det = 0.05, 
                        test_uptake = 0.5, 
                        rel_trans = 0.5)
@@ -40,12 +40,12 @@ get_R_paper = function(SAR = 0.2,
   # parameters over which to vary
   param_vary = data.frame(
                 expand.grid(
-                  HiMSM_prob.det = seq(0.1, 0.9, length.out = 9),
-                  LoMSM_prob.det = seq(0.1, 0.9, length.out = 9),                    
+                  HiMSM_prob.det = seq(0.2, 0.4, length.out = 3),
+                  LoMSM_prob.det = seq(0.1, 0.3, length.out = 3),                    
                   adh = c(0.75, 0.8, 0.95),
                   adh2 = c(0.75, 0.8, 0.95),
                   vax = c(0.1, 0.3, 0.5), # FIX LATER, should increase over time
-                  contact_trace_prob = seq(0.1, 0.9, length.out = 9))) 
+                  contact_trace_prob = seq(0.1, 0.7, length.out = 4))) 
   
     # create data frame to store output 
     a = data.frame()
@@ -103,7 +103,7 @@ get_R_paper = function(SAR = 0.2,
                     program = factor(program, levels = c("No contact tracing", 
                                                          "Test symptomatic", 
                                                          "Test all")),
-        var = paste(adh*100, "% isolation and quarantine efficacy", sep = ""))
+        var = paste(adh*100, "% reduction in transmission due to detection", sep = ""))
     return(a)
     
   }

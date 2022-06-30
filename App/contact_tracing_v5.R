@@ -220,8 +220,8 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
     det_frac = sum(vec[3], vec[6], vec[9:10])/
                 sum(vec[2:3], vec[5:6], vec[7:10]),
     # transmission by contact group status
-    HiMSM = sum(vec[1:3], vec[7], vec[9])/sum(vec),
-    LoMSM = sum(vec[4:6], vec[8], vec[10])/sum(vec)))
+    HiMSM_transmission = sum(vec[1:3], vec[7], vec[9])/sum(vec),
+    LoMSM_transmission = sum(vec[4:6], vec[8], vec[10])/sum(vec)))
 }
 
 #### get_trans_probs: Pull together transition probabilities ####
