@@ -14,11 +14,8 @@ library(tidyverse)
 
 # housekeeping
 # radio button values
-choiceNames= c("Fraction of high contact group cases detected in community", 
-               "Fraction of contacts successfully traced",
-               "Isolation and quarantine efficacy (first generation)", 
-               "Isolation and quarantine efficacy (subsequent generations)")
-choiceValues = c("HiMSM_prob.det", "contact_trace_prob", "adh", "adh2")
+choiceNames=   c("adh", "adh2")
+choiceValues = c("adh", "adh2")
 
 #### UI #### 
 ui <- fluidPage(
@@ -57,11 +54,11 @@ ui <- fluidPage(
                  
                  h4("Epidemiology"),
                  sliderInput("SAR", "Secondary Attach Rate", 
-                             min=0.1, max=0.5, value=0.2, step = 0.05),  
-                 sliderInput("HiMSM_contacts","Contacts, High Contact group",
-                             min=3, max=30, value=5, step =1),    
-                 sliderInput("LoMSM_contacts","Contacts, Low Contact group", 
-                             min=0, max=5, value=1.5, step =0.5),  
+                             min=0.05, max=0.5, value=0.2, step = 0.05),  
+                 sliderInput("HiMSM_contacts","Contacts in the past 14 days, High Contact group",
+                             min=2, max=30, value=5, step =0.5),    
+                 sliderInput("LoMSM_contacts","Contacts in the past 14 days, Low Contact group", 
+                             min=0.5, max=2, value=1.5, step =0.5),  
                  sliderInput("LoMSM_prob","Fraction of Populion in Low Contact group", 
                              min=0, max=1, value=0.6, step =0.1), 
                  
@@ -130,26 +127,25 @@ ui <- fluidPage(
                           
                           # model output                
                           tabPanel("Model results", 
-                                   h4(""),
                                    htmlOutput("txt"),
                                    
                                    # output plots
-                                   plotlyOutput("plot1", height = "450", width = "1300"),
-                                   plotlyOutput("plot2", height = "450", width = "1300"),
-                                   htmlOutput("txt2"),
+                                   #plotlyOutput("plot1", height = "450", width = "1300"),
+                                   #plotlyOutput("plot2", height = "450", width = "1300"),
+                                   #htmlOutput("txt2"),
                                    
-                                   includeMarkdown("content/start.md"),
+                                   #includeMarkdown("content/start.md"),
                           ),
                           
                           # upload and view inputs
-                          tabPanel("Upload inputs" #,
+                          tabPanel("Upload inputs",
                           #         h4("Input data"),
                           #         fileInput("file", "Choose CSV File",
                           #                   multiple = FALSE,
                           #                   accept = c("text/csv",
                           #                              "text/comma-separated-values,text/plain",
                           #                              ".csv")),
-                          #         tableOutput("tbl2")
+                                    tableOutput("tbl")
                           ),
                           
                           # documentation
@@ -226,8 +222,8 @@ server <- function(input, output, session) {
   out <- reactive({
     
     get_R(SAR                      = input$SAR, 
-          HiMSM_contacts           = input$HiMSM_contacts, 
-          LoMSM_contacts           = input$LoMSM_contacts, 
+          HiMSM_contacts           = input$HiMSM_contacts/14, 
+          LoMSM_contacts           = input$LoMSM_contacts/14, 
           duration                 = 21,
           HiMSM_prob.det           = input$HiMSM_prob.det,
           LoMSM_prob.det           = input$LoMSM_prob.det, 
@@ -249,21 +245,26 @@ server <- function(input, output, session) {
   output$tbl = renderTable({ out() })
   
   # MAKE PLOTS 
-  plots = reactive({ 
-    make_plots(out(), xaxis = choiceNames[which(choiceValues==input$xaxis)])
-    })
+  #plots = reactive({ 
+  #  make_plots(out(), xaxis = choiceNames[which(choiceValues==input$xaxis)])
+  #  })
   
   # MAKE PLOT TOP ROW
-  output$plot1 <- renderPlotly({
-    plots()[[1]]
-  })
-  
-  # MAKE PLOT BOTTOM ROW
-  output$plot2 <- renderPlotly({
-    subplot(style(plots()[[2]], showlegend = FALSE),
-            plots()[[3]])
-  })
-  
+  #output$plot1 <- renderPlotly({
+  #  ggplot(data = out(), 
+  #         aes(y = R, 
+  #             x = choiceNames[which(choiceValues==input$xaxis)]), 
+  #             group = Scenario, color = Scenario) + 
+  #  geom_line()
+  #  #plots()[[1]]
+  #})
+  #
+  ## MAKE PLOT BOTTOM ROW
+  #output$plot2 <- renderPlotly({
+  #  #subplot(style(plots()[[2]], showlegend = FALSE),
+  #  #        plots()[[3]])
+  #})
+  #
   # MAKE TEXT
   output$txt = renderText({
     paste("<font size='4'><strong>What can contact tracing achieve?</strong> 

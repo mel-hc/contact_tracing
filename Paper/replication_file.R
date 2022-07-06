@@ -24,6 +24,9 @@ library(gridExtra)
 # 2) call make_params to set up transition matrix
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by symptom type
+
+# think about a few scenarios that result in an R0 of 1.1
+
 get_R_paper = function(SAR = 0.2,
                        HiMSM_contacts = 10/14, # 10 contacts in 14 days
                        LoMSM_contacts = 2/14,  # 2 contacts in 14 days
@@ -40,12 +43,12 @@ get_R_paper = function(SAR = 0.2,
   # parameters over which to vary
   param_vary = data.frame(
                 expand.grid(
-                  HiMSM_prob.det = seq(0.2, 0.4, length.out = 3),
-                  LoMSM_prob.det = seq(0.1, 0.3, length.out = 3),                    
-                  adh = c(0.75, 0.8, 0.95),
-                  adh2 = c(0.75, 0.8, 0.95),
-                  vax = c(0.1, 0.3, 0.5), # FIX LATER, should increase over time
-                  contact_trace_prob = seq(0.1, 0.7, length.out = 4))) 
+                  HiMSM_prob.det = seq(0.3, 0.7, length.out = 6),
+                  LoMSM_prob.det = seq(0.3, 0.7, length.out = 6),                    
+                  adh = c(0.8, 0.85, 0.9),
+                  adh2 = c(0.8, 0.85, 0.9),
+                  vax = c(0.02, 0.05, 0.1, 0.15), # change so just for high risk group
+                  contact_trace_prob = seq(0.5, 0.8, length.out = 6))) 
   
     # create data frame to store output 
     a = data.frame()
@@ -138,7 +141,7 @@ make_heatmap = function(R, title, perc_asymp = 0.4, save = T, show_legend = T) {
 }
 
 #### MAKE LINEGRAPH ####
-make_linegraph = function(R, title, perc_asymp = .4, save = T){
+make_linegraph = function(R, title, LoMSM_prob = .4, save = F){
   
   # make color palette
   pal = brewer.pal(9, "Blues")[c(2,3,5,7,9)]
@@ -147,9 +150,9 @@ make_linegraph = function(R, title, perc_asymp = .4, save = T){
   ctrace_keep = unique(R$contact_trace_prob)[c(1,3,5,7,9)]
   
   # make plot
-  plot = ggplot(R %>% filter(Scenario != "No contact \ntracing" & A_prob == .4 & 
+  plot = ggplot(R %>% filter(Scenario != "No contact \ntracing" & LoMSM_prob == .4 & 
                          (contact_trace_prob%in%ctrace_keep)), 
-         aes(x = S_prob.det, y = perc_red, group = factor(contact_trace_prob), 
+         aes(x = HiMSM_prob.det, y = perc_red, group = factor(contact_trace_prob), 
              col = factor(contact_trace_prob))) + geom_line() +
     theme(axis.line = element_blank()) + 
     scale_color_manual(name = "Fraction of contacts\nsuccessfully traced", values= pal) + 
