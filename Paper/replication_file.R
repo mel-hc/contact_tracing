@@ -1,4 +1,4 @@
-#************************************ Replication File *********************#
+# Replication File *********************************************************#
 #                                                                           #
 #                                                                           #
 # This file replicates figures and results for the pre-print in this folder.# 
@@ -27,9 +27,7 @@ library(gridExtra)
 
 # think about a few scenarios that result in an R0 of 1.1
 
-get_R_paper = function(SAR = 0.2,
-                       HiMSM_contacts = 10/14, # 10 contacts in 14 days
-                       LoMSM_contacts = 2/14,  # 2 contacts in 14 days
+get_R_paper = function(LoMSM_contacts = 2/14,  # 2 contacts in 14 days
                        duration = 21, # Estimated time from lesion appearance 
                                       # to fully healed (no scabs)
                        LoMSM_prob = 0.6, # very made up
@@ -37,18 +35,22 @@ get_R_paper = function(SAR = 0.2,
                        comparator = "Contact tracing only",
                        baseline_HiMSM_prob.det = 0.1, 
                        baseline_LoMSM_prob.det = 0.05, 
-                       test_uptake = 0.5, 
-                       rel_trans = 0.5)
+                       HiMSM_prob.det = 0.15, 
+                       # catching 15% of cases in high contact group through passive surveillance
+                       LoMSM_prob.det = 0.1,  
+                       # catching 10% of cases in low contact group through passive surveillance 
+                       test_uptake = 0.8,
+                       adh = 0.85, 
+                       adh2 = 0.85,
+                       rel_trans = 1) #detected and undeteced have same risk of transmission
 {
   # parameters over which to vary
   param_vary = data.frame(
                 expand.grid(
-                  HiMSM_prob.det = seq(0.3, 0.7, length.out = 6),
-                  LoMSM_prob.det = seq(0.3, 0.7, length.out = 6),                    
-                  adh = c(0.8, 0.85, 0.9),
-                  adh2 = c(0.8, 0.85, 0.9),
-                  vax = c(0.02, 0.05, 0.1, 0.15), # change so just for high risk group
-                  contact_trace_prob = seq(0.5, 0.8, length.out = 6))) 
+                  SAR = c(0.12, 0.18), 
+                  HiMSM_contacts = c(12/14, 17/14),
+                  vax = seq(0.01, 0.1, length.out = 10), 
+                  contact_trace_prob = seq(0.1, 0.9, length.out = 5))) 
   
     # create data frame to store output 
     a = data.frame()
@@ -58,31 +60,29 @@ get_R_paper = function(SAR = 0.2,
       
       # make parameter vectors
       z = make_params(
-        SAR = SAR, 
-        HiMSM_contacts = HiMSM_contacts, 
         LoMSM_contacts = LoMSM_contacts,
         duration = duration,  
         LoMSM_prob = LoMSM_prob,
         comparator = comparator, 
         baseline_HiMSM_prob.det = baseline_HiMSM_prob.det, 
-        baseline_LoMSM_prob.det = baseline_LoMSM_prob.det,  
-        test_uptake = test_uptake, 
+        baseline_LoMSM_prob.det = baseline_LoMSM_prob.det, 
+        HiMSM_prob.det = HiMSM_prob.det, 
+        LoMSM_prob.det = LoMSM_prob.det, 
+        test_uptake = test_uptake,
         rel_trans = rel_trans,
+        adh = adh,
+        adh2 = adh2, 
 # varied over different iterations
-        HiMSM_prob.det = param_vary$HiMSM_prob.det[i], 
-        LoMSM_prob.det = param_vary$LoMSM_prob.det[i], 
-        adh = param_vary$adh[i],
-        adh2 = param_vary$adh2[i], 
+        SAR = param_vary$SAR[i], 
+        HiMSM_contacts = param_vary$HiMSM_contacts[i],
         vax = param_vary$vax[i], 
         contact_trace_prob = param_vary$contact_trace_prob[i])
         
   a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
                       mutate(
                         # store variable values
-                        HiMSM_prob.det = param_vary$HiMSM_prob.det[i], 
-                        LoMSM_prob.det = param_vary$LoMSM_prob.det[i], 
-                        adh = param_vary$adh[i],
-                        adh2 = param_vary$adh2[i], 
+                        SAR = param_vary$SAR[i], 
+                        HiMSM_contacts = param_vary$HiMSM_contacts[i],
                         vax = param_vary$vax[i], 
                         contact_trace_prob = param_vary$contact_trace_prob[i]))
       
@@ -91,8 +91,7 @@ get_R_paper = function(SAR = 0.2,
     # Post-processing
     # calculate relative R
     # make variable labels
-    a = a %>%
-      dplyr::group_by(HiMSM_prob.det, contact_trace_prob, adh) %>%
+    a = a %>% dplyr::group_by(SAR, HiMSM_contacts, vax, contact_trace_prob) %>%
       # find maximum R
       # then take ratio compared to this
       # recall eigenvalues scale linearly
@@ -106,10 +105,28 @@ get_R_paper = function(SAR = 0.2,
                     program = factor(program, levels = c("No contact tracing", 
                                                          "Test symptomatic", 
                                                          "Test all")),
-        var = paste(adh*100, "% reduction in transmission due to detection", sep = ""))
+        var = paste(adh*100, "% reduction in transmission", sep = ""))
     return(a)
     
   }
+
+all_output <- get_R_paper() %>% 
+              mutate(R_scenario = case_when(
+                SAR == 0.12 & HiMSM_contacts == (12/14) ~ "A. SAR = 0.12, Avg. Contact = 9", 
+                SAR == 0.12 & HiMSM_contacts == (17/14) ~ "B. SAR = 0.12, Avg. Contact = 12", 
+                SAR == 0.18 & HiMSM_contacts == (12/14) ~ "C. SAR = 0.18, Avg. Contact = 9", 
+                SAR == 0.18 & HiMSM_contacts == (17/14) ~ "D. SAR = 0.18, Avg. Contact = 12"
+              )) %>%
+              filter(Scenario == "Contact tracing\n(Test all)")
+
+  ggplot(all_output,
+        aes(x = vax, y = R, group = as.factor(contact_trace_prob))) +
+  geom_line(aes(color = as.factor(contact_trace_prob))) + 
+  facet_wrap(.~R_scenario) + 
+  theme_bw()
+    
+
+
 
 ## JIYE TO MAKE ADDITIONAL CHANGES HERE
 

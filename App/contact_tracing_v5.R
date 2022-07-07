@@ -17,7 +17,7 @@ get_R = function(SAR, # secondary attack rate
                  comparator, # character string, assigns a scenario
                  baseline_HiMSM_prob.det, # prob detection w/o tracing (Hi)
                  baseline_LoMSM_prob.det, # prob detection w/o tracing (Lo)
-                 test_uptake, # probability tested (if traced? without traced?)
+                 test_uptake, # fraction of contacts tested
                  adh, # adherence / % redux in transmission
                  adh2, # adherence / % redux in transmission
                  vax, # fraction of MSM population with vax
@@ -118,12 +118,8 @@ make_params = function(SAR, # secondary attack rate
                                LoMSM_prob.det, 
                                baseline_LoMSM_prob.det))
 
-### !!!! ADD NEW SCENARIOS FOR MONKEY POX !!! #
-# Name changes are *encouraged*, please update names in calc_R fx, etc. 
-  #line 159, line 167, line 179, line 204
-############################################################################### 
   # CONTACT TRACING GEN 1
-  # 1) Increase testing of High Contact contacts (test_uptake)
+  # 1) Increase detection in High Contact group (test_uptake)
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
@@ -133,7 +129,7 @@ make_params = function(SAR, # secondary attack rate
            LoMSM_D_RR      = LoMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
-  # 1) Increase testing of High Contact contacts (test_uptake)
+  # 1) Increase detection in High Contact group (test_uptake)
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
@@ -144,7 +140,7 @@ make_params = function(SAR, # secondary attack rate
   
   # !!!! ADD NEW SCENARIOS FOR MONKEY POX !!! #
   # CONTACT TRACTING AND PASSIVE TESTING GEN 1
-  # 1) Increase Low Contact testing
+  # 1) Increase detection in all groups
   # 2) Allow  transmission reduction for detected presymptomatics 
   params_test_ctrace_1 = params_ctrace_1 %>% 
     mutate(LoMSM_prob.det = test_uptake) # drawing from uniform dist, reduce by half???
@@ -273,14 +269,14 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
       params$contact_trace_prob*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
-      (params$LoMSM_D_RR*params$duration*(1-params$vax))*
+      (params$LoMSM_D_RR*params$duration)*
       first_gen
     
     LoMSM_D_T_2  = 
       params$contact_trace_prob*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
-      (params$LoMSM_D_RR*params$duration*(1-params$vax))*
+      (params$LoMSM_D_RR*params$duration)*
       (1-first_gen)
     
     LoMSM_D_NT_noctrace = 
@@ -288,19 +284,19 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       (1-ctrace)*
-      (params$LoMSM_D_RR*params$duration*(1-params$vax))
+      (params$LoMSM_D_RR*params$duration)
 
     LoMSM_D_NT_ctrace = 
       (1-params$contact_trace_prob)*
       (params$LoMSM_prob)*
       (params$LoMSM_prob.det)*
       ctrace*
-      (params$LoMSM_D_RR*params$duration*(1-params$vax))
+      (params$LoMSM_D_RR*params$duration)
 
     LoMSM_U = 
       (1-params$LoMSM_prob.det)*
       (params$LoMSM_prob)*
-      (params$LoMSM_U_RR*params$duration*(1-params$vax))
+      (params$LoMSM_U_RR*params$duration)
     
 # return values
   trans = c(
