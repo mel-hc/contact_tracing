@@ -40,16 +40,16 @@ get_R_paper = function(LoMSM_contacts = 2/14,  # 2 contacts in 14 days
                        LoMSM_prob.det = 0.1,  
                        # catching 10% of cases in low contact group through passive surveillance 
                        test_uptake = 0.8,
-                       adh = 0.85, 
-                       adh2 = 0.85,
-                       rel_trans = 1) #detected and undeteced have same risk of transmission
+                       adh = 0.8, 
+                       adh2 = 0.8,
+                       rel_trans = 0.5) #detected lower transmission risk by half
 {
   # parameters over which to vary
   param_vary = data.frame(
                 expand.grid(
                   SAR = c(0.12, 0.18), 
                   HiMSM_contacts = c(12/14, 17/14),
-                  vax = seq(0.01, 0.1, length.out = 10), 
+                  vax = seq(0, 0.3, length.out = 11), 
                   contact_trace_prob = seq(0.1, 0.9, length.out = 5))) 
   
     # create data frame to store output 
@@ -110,7 +110,7 @@ get_R_paper = function(LoMSM_contacts = 2/14,  # 2 contacts in 14 days
     
   }
 
-all_output <- get_R_paper() %>% 
+all_output <- get_R_paper(test_uptake = 0.95) %>% 
               mutate(R_scenario = case_when(
                 SAR == 0.12 & HiMSM_contacts == (12/14) ~ "A. SAR = 0.12, Avg. Contact = 9", 
                 SAR == 0.12 & HiMSM_contacts == (17/14) ~ "B. SAR = 0.12, Avg. Contact = 12", 
@@ -123,7 +123,11 @@ all_output <- get_R_paper() %>%
         aes(x = vax, y = R, group = as.factor(contact_trace_prob))) +
   geom_line(aes(color = as.factor(contact_trace_prob))) + 
   facet_wrap(.~R_scenario) + 
-  theme_bw()
+  geom_hline(yintercept = 1, color = "green", size = 0.5) + 
+  theme_bw() + 
+  labs(y = "Estiamted R Effective", 
+       x = "Vaccine Coverage (assume 100% efficacy)", 
+       color = "Fraction of Cases that are Contact Traced")
     
 
 
