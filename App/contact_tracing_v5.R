@@ -7,14 +7,15 @@
 # 4) return data frame of R, det_frac, and R by contact group type
 
 get_R = function(SAR, # secondary attack rate
-                 HiMSM_contacts, # avg. (daily) contacts, High Contact group p 
+                 HiMSM_contacts, # avg. contacts, High Contact group 
                  duration, # duration of infectiousness
-                 HiMSM_prob.det, # detection probability, High Contact
+                 HiMSM_prob.det, # baseline detection
+                 HiMSM_prob.det_comm, # community detection 
+                 HiMSM_prob.det_traced, # traced detection
                  contact_trace_prob, # probability of contact tracing 
-                 incr_HiMSM_prob.det, # increase in detection probability 
-                 adh, # adherence / % redux in transmission
-                 adh2, # adherence / % redux in transmission
-                 vax,     # compared to undetected)
+                 adh, # adherence to isolation (% redux in contacts)
+                 adh2, # adherence to isolation (% redux in contacts)
+                 vax, # fraction of MSM pop. vaccinated
                  xaxis){
   
   # set x-axis
@@ -42,7 +43,7 @@ get_R = function(SAR, # secondary attack rate
                     vax)
 
     a = bind_rows(a, 
-                  calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
+                  calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) %>% 
                     mutate(
                       # store variable values
                       var = var[i], 
@@ -90,7 +91,7 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det  = HiMSM_prob.det_comm,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.88)),
            HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
@@ -98,7 +99,7 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det  = HiMSM_prob.det_comm,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.88)),
            HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # RETURN OUTPUT
@@ -111,7 +112,7 @@ make_params = function(SAR, # secondary attack rate
 calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
                   params, # BASE CASE (first generation for CT scenarios)
                   params_ctrace_1, #CT and test 
-                  params_ctrace_2plus, #CT and test 
+                  params_ctrace_2plus #CT and test 
                   ) {
   
   # run different methods 
