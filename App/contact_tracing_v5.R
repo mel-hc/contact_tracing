@@ -7,22 +7,15 @@
 # 4) return data frame of R, det_frac, and R by contact group type
 
 get_R = function(SAR, # secondary attack rate
-                 HiMSM_contacts, # avg. (daily) contacts, High Contact group 
-                 LoMSM_contacts, # avg. (daily) contacts, Low Contact group 
+                 HiMSM_contacts, # avg. (daily) contacts, High Contact group p 
                  duration, # duration of infectiousness
                  HiMSM_prob.det, # detection probability, High Contact
-                 LoMSM_prob.det, # detection probability, Low Contact
-                 LoMSM_prob, # fraction of infections that are Low Contact. Moot?
                  contact_trace_prob, # probability of contact tracing 
                  comparator, # character string, assigns a scenario
-                 baseline_HiMSM_prob.det, # prob detection w/o tracing (Hi)
-                 baseline_LoMSM_prob.det, # prob detection w/o tracing (Lo)
                  test_uptake, # fraction of contacts tested
                  adh, # adherence / % redux in transmission
                  adh2, # adherence / % redux in transmission
-                 vax, # fraction of MSM population with vax
-                 rel_trans, # relative number of secondary infections (detected 
-                            # compared to undetected)
+                 vax,     # compared to undetected)
                  xaxis){
   
   # set x-axis
@@ -40,20 +33,14 @@ get_R = function(SAR, # secondary attack rate
     # make parameter vectors
     z = make_params(SAR,
                     HiMSM_contacts, 
-                    LoMSM_contacts,  
                     duration, 
                     HiMSM_prob.det,
-                    LoMSM_prob.det,
-                    LoMSM_prob, 
                     contact_trace_prob,
                     comparator, 
-                    baseline_HiMSM_prob.det, 
-                    baseline_LoMSM_prob.det, 
                     test_uptake, 
                     adh, 
                     adh2, 
-                    vax,
-                    rel_trans)
+                    vax)
 
     a = bind_rows(a, 
                   calc_R(z[[1]], z[[2]], z[[3]], z[[4]], z[[5]],z[[6]]) %>% 
@@ -75,110 +62,66 @@ get_R = function(SAR, # secondary attack rate
   # Scenarios: 
   # Counterfactual: No contact tracing
   # Base Case: High Contact testing, contact tracing
-  # 
+
 make_params = function(SAR, # secondary attack rate
                        HiMSM_contacts, # avg. contacts, High Contact group 
-                       LoMSM_contacts, # avg. contacts, Low Contact group 
                        duration, # duration of infectiousness
                        HiMSM_prob.det, # detection probability, High Contact
-                       LoMSM_prob.det, # detection probability, Low Contact
-                       LoMSM_prob, # fraction of infections that are Low Contact 
                        contact_trace_prob, # probability of contact tracing 
                        comparator, # character string, assigns a scenario
-                       baseline_HiMSM_prob.det, # prob detection w/o tracing (sym)
-                       baseline_LoMSM_prob.det,  # prob detection w/o tracing (asym)
                        test_uptake, # probability tested if traced 
                        adh, # adherence to isolation (% redux in contacts)
                        adh2, # adherence to isolation (% redux in contacts)
-                       vax, # fraction of MSM pop. vaccinated
-                       rel_trans # Redux in number of secondary infections, 
-                                 # detected vs. undetected
+                       vax # fraction of MSM pop. vaccinated
                        ){
   # BASE CASE 
   # Here, 'U' refers to those who are not detected and 'D' refers to those 
   # who are detected. In most cases, new param name is for consistency. 
   params = data.frame(HiMSM_U_RR = HiMSM_contacts*SAR, 
-                      HiMSM_D_RR = HiMSM_contacts*SAR*rel_trans, 
-                      LoMSM_U_RR = LoMSM_contacts*SAR, 
-                      LoMSM_D_RR = LoMSM_contacts*SAR*rel_trans, 
+                      HiMSM_D_RR = HiMSM_contacts*SAR,
                       duration, 
                       HiMSM_prob.det, 
-                      LoMSM_prob.det, 
-                      LoMSM_prob,
                       contact_trace_prob,
-                      vax) %>%
-                       mutate(LoMSM_prob.det = HiMSM_prob.det/2)
-  
+                      vax) 
   # COUNTERFACTUAL: base case with no contact tracing
   params_cf = params %>% 
-    mutate(contact_trace_prob = 0, 
-           HiMSM_prob.det = ifelse(comparator=="Contact tracing only", 
-                               HiMSM_prob.det, 
-                               baseline_HiMSM_prob.det), 
-           LoMSM_prob.det = ifelse(comparator=="Contact tracing only", 
-                               LoMSM_prob.det, 
-                               baseline_LoMSM_prob.det))
+    mutate(contact_trace_prob = 0)
 
   # CONTACT TRACING GEN 1
   # 1) Increase detection in High Contact group (test_uptake)
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-adh),
-           HiMSM_D_RR      = HiMSM_D_RR*(1-adh),
-           LoMSM_U_RR      = LoMSM_U_RR*(1-adh), 
-           LoMSM_D_RR      = LoMSM_D_RR*(1-adh))
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
+           HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
   # 1) Increase detection in High Contact group (test_uptake)
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det = test_uptake,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-adh2),
-           HiMSM_D_RR      = HiMSM_D_RR*(1-adh2),
-           LoMSM_U_RR      = LoMSM_U_RR*(1-adh2),
-           LoMSM_D_RR      = LoMSM_D_RR*(1-adh2))
-  
-  # !!!! ADD NEW SCENARIOS FOR MONKEY POX !!! #
-  # CONTACT TRACTING AND PASSIVE TESTING GEN 1
-  # 1) Increase detection in all groups
-  # 2) Allow  transmission reduction for detected presymptomatics 
-  params_test_ctrace_1 = params_ctrace_1 %>% 
-    mutate(LoMSM_prob.det = test_uptake) # drawing from uniform dist, reduce by half???
-  
-  # CONTACT TRACTING AND PASSIVE TESTING GEN 2
-  # Same as gen 1, but adapting params_ctrace_2plus
-  params_test_ctrace_2_plus = params_ctrace_2plus %>% 
-    mutate(LoMSM_prob.det = test_uptake)
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
+           HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # RETURN OUTPUT
-  return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus, 
-              params_test_ctrace_1, params_test_ctrace_2_plus))
+  return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus))
 }
 
 #### calc_R: run over each scenario #### NAME CHANGES
-# 1) No contact tracing (params_cf)
-# 2) Test High Contact (params and params_ctrace_XX)
-# 3) Test all (params and params_test_ctrace_XX)
+# 1) Testing, no contact tracing (params_cf)
+# 2) Contact tracing and increased testing (params and params_ctrace_XX)
+
 calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
-                 
                   params, # BASE CASE (first generation for CT scenarios)
-           
-                  params_ctrace_1, #CT and test High Contact
-                  params_ctrace_2plus, #CT and test High Contact
-                  
-                  params_test_ctrace_1, #CT and test all
-                  params_test_ctrace_2_plus #CT and test all 
+                  params_ctrace_1, #CT and test 
+                  params_ctrace_2plus, #CT and test 
                   ) {
   
-  # run different methods NAME CHANGES HEREA
-  out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% 
-                    mutate(Scenario = "No contact \ntracing"),
+  # run different methods 
+  out = bind_rows(#dom_eigen(params_cf, params_cf, params_cf) %>% 
+                  #  mutate(Scenario = "No contact tracing"),
                   dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% 
-                    mutate(Scenario = "Contact tracing\n(Test High Contact)"),
-                  dom_eigen(params, params_test_ctrace_1, 
-                            params_test_ctrace_2_plus) %>% 
-                    mutate(Scenario = "Contact tracing\n(Test all)"))
+                    mutate(Scenario = "Contact tracing and increased testing"))
   return(out) 
 }
 
@@ -202,9 +145,10 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
   z = get_trans_probs(params_ctrace_2plus,  first_gen = F, ctrace = T)
   
   # put in matrix
-  mat = matrix(unlist(c(rep(x, 6), 
-                        rep(y, 2),
-                        rep(z, 2))), ncol = 10, byrow = T)
+  mat = matrix(unlist(c(rep(x, 3), 
+                        rep(y, 1), 
+                        rep(z, 1))), 
+               ncol = 5, byrow = T)
   
   # estimate eigenvectors/values
   vec = Re(eigen(t(mat))$vectors[,1])
@@ -212,13 +156,8 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
   # return output
   return(data.frame(
     # R(t)
-    R = max(Re(eigen(mat)$values)),
-    # detection fraction
-    det_frac = sum(vec[3], vec[6], vec[9:10])/
-                sum(vec[2:3], vec[5:6], vec[7:10]),
-    # transmission by contact group status
-    HiMSM_transmission = sum(vec[1:3], vec[7], vec[9])/sum(vec),
-    LoMSM_transmission = sum(vec[4:6], vec[8], vec[10])/sum(vec)))
+    R = max(Re(eigen(mat)$values)))
+)
 }
 
 #### get_trans_probs: Pull together transition probabilities ####
@@ -237,183 +176,33 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
     HiMSM_D_T_1  = # first gen detected through contact tracing
       params$contact_trace_prob*first_gen* # contact tracing prob
       (params$HiMSM_prob.det)* # detection rate
-      (1-params$LoMSM_prob)* #prob in the HiMSM pop. 
       (params$HiMSM_D_RR*params$duration*(1-params$vax)) # Rt (RR * duration)
 
     HiMSM_D_T_2  = # second gen detected through contact tracing
       params$contact_trace_prob*(1-first_gen)*
-      (1-params$LoMSM_prob)* 
       (params$HiMSM_prob.det)*
       (params$HiMSM_D_RR*params$duration*(1-params$vax)) 
 
     HiMSM_D_NT_noctrace = # gen 1 not traced, gen 2 not traced
       (1-params$contact_trace_prob)* # prob. gen 1 not contact traced
       (params$HiMSM_prob.det)*
-      (1-params$LoMSM_prob)*
       (1-ctrace)* # prob. gen 2 not contact traced
       (params$HiMSM_D_RR*params$duration*(1-params$vax))
 
     HiMSM_D_NT_ctrace = # gen 1 not traced, gen 2 traced
       (1-params$contact_trace_prob)*
       (params$HiMSM_prob.det)*
-      (1-params$LoMSM_prob)*
       (ctrace)* # prob. gen 2 contact traced
       (params$HiMSM_D_RR*params$duration*(1-params$vax))
     
     HiMSM_U = # undetected -- second generation cannot be traced
       (1-params$HiMSM_prob.det)*
-      (1-params$LoMSM_prob)*
       (params$HiMSM_U_RR*params$duration*(1-params$vax))
-    
-    # Low Contact group
-    LoMSM_D_T_1  = 
-      params$contact_trace_prob*
-      (params$LoMSM_prob)*
-      (params$LoMSM_prob.det)*
-      (params$LoMSM_D_RR*params$duration)*
-      first_gen
-    
-    LoMSM_D_T_2  = 
-      params$contact_trace_prob*
-      (params$LoMSM_prob)*
-      (params$LoMSM_prob.det)*
-      (params$LoMSM_D_RR*params$duration)*
-      (1-first_gen)
-    
-    LoMSM_D_NT_noctrace = 
-      (1-params$contact_trace_prob)*
-      (params$LoMSM_prob)*
-      (params$LoMSM_prob.det)*
-      (1-ctrace)*
-      (params$LoMSM_D_RR*params$duration)
-
-    LoMSM_D_NT_ctrace = 
-      (1-params$contact_trace_prob)*
-      (params$LoMSM_prob)*
-      (params$LoMSM_prob.det)*
-      ctrace*
-      (params$LoMSM_D_RR*params$duration)
-
-    LoMSM_U = 
-      (1-params$LoMSM_prob.det)*
-      (params$LoMSM_prob)*
-      (params$LoMSM_U_RR*params$duration)
-    
+  
+  
 # return values
   trans = c(
-    # not traced
-    HiMSM_U, HiMSM_D_NT_noctrace, HiMSM_D_NT_ctrace,
-    LoMSM_U, LoMSM_D_NT_noctrace, LoMSM_D_NT_ctrace,
-    # traced first gen
-    HiMSM_D_T_1, LoMSM_D_T_1,
-    # traced second gen
-    HiMSM_D_T_2, LoMSM_D_T_2)
-}
-
-#### make_plots: Make plots ####
-make_plots = function(R_plot, xaxis = "test", R0 = 2, Rt = 1) {
-  
-  # CLEANING
-  # modify axis label
-  xaxis = paste(" \n", xaxis, collapse = "")
-  
-  # set theme
-  t = theme(panel.background = element_blank(),
-            panel.grid.major = element_blank(),
-            panel.grid.minor = element_blank(),
-            axis.title = element_text(size = 13),
-            axis.text = element_text(size = 11)) 
-  
-  # estimate convergence  
-  R_plot = R_plot %>% dplyr::group_by(var) %>% 
-    dplyr::mutate(
-           # R as a ratio
-           maxR = R[1], ratio = R/maxR, 
-           # percent reduction
-           Rt_new = Rt*ratio, 
-           
-           # containment margin
-           
-           c_margin = (R0 - 1/(ratio*Rt))/(R0 - Rt),
-           c_margin = ifelse(c_margin < 0, 0, c_margin),
-           
-           # percent from each group
-           HiMSM_pct = symp*ratio*Rt,
-           LoMSM_pct = LoMSM*ratio*Rt,
-           Presymptomatic = presymp*ratio*Rt, 
-           
-           # set as factor for cleaning
-           Scenario2 = factor(Scenario, levels = 
-                                c("No contact \ntracing", "Testing scale-up", 
-           "Contact tracing\n(Test High Contact)", "Contact tracing\n(Test all)")))
-
-  # TOP ROW
-  # process data
-  R1 = R_plot %>%
-    gather(chk, value, Rt_new, c_margin) %>% 
-    mutate(var2 = ifelse(chk == "Rt_new", "R(t) with contact tracing", 
-                         "Fraction of current physical distancing needed for \n R(t)<1 with contact tracing"),
-           var3 = factor(var2, levels = c("R(t) with contact tracing",
-                                          "Fraction of current physical distancing needed for \n R(t)<1 with contact tracing")),
-           txt =  paste(Scenario2, ": \n x=", round(var,2), "\n y=",  
-                        round(value,2), sep = "")) %>% 
-    filter(Scenario != "No contact \ntracing") 
-  
-  # make plot
-  ymax = max(1, R1$value)
-  a = ggplot(R1, aes(x = var, y = value)) +
-    geom_line(lwd = 1, aes(group = Scenario2, col = Scenario2, text = txt)) + 
-    theme_minimal(base_size = 20) +
-    geom_point(data = R1 %>% filter(point=="point"), 
-               aes(x = var, y = value, group = Scenario2, text = txt), 
-               size = 2, col = "black") + 
-    facet_wrap(.~var3, ncol = 2, scales = "free_y") + t +
-    scale_color_brewer(name = "", palette = "Set1") + 
-    labs(x = xaxis, y = "", title = "") + ylim(0, ymax)
-  
-  # BOTTOM LEFT
-  # process data
-  R2 = R_plot %>% filter(!Scenario%in%c("No contact \ntracing", "Testing scale-up")) %>% 
-    mutate(temp = "Fraction of confirmed cases who \nare known contacts",
-           txt = paste(Scenario2, ": \n x=", round(var, 2), "\n y=",  
-                       round(det_frac, 2), sep = ""))
-  
-  # make plot
-  b = ggplot(R2, 
-             aes(x = var, y = det_frac, group = Scenario2, col = Scenario2,
-                                                           text = txt)) + 
-    geom_line(lwd = 1) + 
-    geom_point(data = R2 %>% filter(point=="point"), 
-               aes(x = var, y = det_frac, group = Scenario2, text = txt), 
-               size = 2, col = "black") + 
-    theme_minimal(base_size = 20) + 
-    scale_color_brewer(name = "", palette = "Set1") + 
-    labs(x = xaxis, y = "", title = "") + t + facet_grid(.~temp) + 
-    ylim(0,100) + theme(legend.position='none') + ylim(0,1)
-  
-  # BOTTOM RIGHT
-  # process data
-  R3 = R_plot %>% filter(point=="point") %>%
-    gather(chk, value, LoMSM_pct, Presymptomatic, HiMSM_pct) %>%
-    mutate(txt = paste(chk, ": ", round(value, 2), sep = ""),
-           temp = "R(t) by symptom status")
-  
-  # make plot
-  c = ggplot(R3,
-             aes(x = Scenario2, y = value, fill = chk, text = txt)) + 
-    geom_bar(stat = "identity") + 
-    geom_text(position = position_stack(vjust = .5), aes(label = round(value, 2))) + 
-    geom_text(aes(y = ratio*Rt*1.1, label = round(ratio*Rt,2))) + 
-    theme_minimal(base_size = 20) + 
-    scale_fill_brewer(name = "", palette = "Set1") + 
-    labs(x = xaxis, y = "", title = "") + t + facet_grid(.~temp)
-  
-  # return output
-  return(list(ggplotly(a, tooltip = c("text")) %>%
-                layout(margin = list(b = 50, t = 80)) %>% config(displayModeBar = F),
-              ggplotly(b, tooltip = c("text")) %>%
-                layout(margin = list(b = 50, t = 80)) %>% config(displayModeBar = F),
-              ggplotly(c, tooltip = c("text")) %>%
-                layout(margin = list(b = 50, t = 80)) %>% config(displayModeBar = F)
-              ))
+    HiMSM_U, HiMSM_D_NT_noctrace, HiMSM_D_NT_ctrace, # not traced
+    HiMSM_D_T_1, # traced first gen
+    HiMSM_D_T_2) # traced second gen
 }
