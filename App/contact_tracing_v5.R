@@ -106,7 +106,8 @@ make_params = function(SAR, # secondary attack rate
                       LoMSM_prob.det, 
                       LoMSM_prob,
                       contact_trace_prob,
-                      vax)
+                      vax) %>%
+                       mutate(LoMSM_prob.det = HiMSM_prob.det/2)
   
   # COUNTERFACTUAL: base case with no contact tracing
   params_cf = params %>% 
