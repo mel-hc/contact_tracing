@@ -5,7 +5,6 @@
 # 2) call make_params to set up transition matrix
 # 3) call calc_R to estimate outcomes
 # 4) return data frame of R, det_frac, and R by contact group type
-
 get_R = function(SAR, # secondary attack rate
                  HiMSM_contacts, # avg. contacts, High Contact group 
                  duration, # duration of infectiousness
@@ -17,7 +16,6 @@ get_R = function(SAR, # secondary attack rate
                  adh2, # adherence to isolation (% redux in contacts)
                  vax, # fraction of MSM pop. vaccinated
                  xaxis){
-  
   # set x-axis
   var = c(eval(parse(text = xaxis)), seq(.1, .9, length.out = 9), .95)
   
@@ -116,8 +114,8 @@ calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
                   ) {
   
   # run different methods 
-  out = bind_rows(#dom_eigen(params_cf, params_cf, params_cf) %>% 
-                  #  mutate(Scenario = "No contact tracing"),
+  out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% 
+                    mutate(Scenario = "No contact tracing"),
                   dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% 
                     mutate(Scenario = "Contact tracing and increased testing"))
   return(out)  

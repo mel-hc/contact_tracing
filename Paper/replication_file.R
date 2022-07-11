@@ -29,14 +29,14 @@ library(gridExtra)
 
 get_R_paper = function(duration = 21, # duration of infectiousness
                        HiMSM_prob.det = 0.1, # baseline detection
-                       HiMSM_prob.det_traced = 0.8,
+                       HiMSM_prob.det_traced = 0.85,
                        adh = 0.9, # adherence to isolation (% redux in contacts)
                        adh2 = 0.9) # adherence to isolation (% redux in contacts
 {
   # parameters over which to vary
   param_vary = data.frame(
                 expand.grid(
-                  SAR = c(0.10, 0.15), 
+                  SAR = c(0.10, 0.14), 
                   HiMSM_contacts = c(7/14, 9/14),
                   HiMSM_prob.det_comm = seq(0.2, 0.8, length.out = 4),
                   vax = seq(0, 0.7, length.out = 8), 
@@ -86,32 +86,26 @@ get_R_paper = function(duration = 21, # duration of infectiousness
       # so the percent reduction does not depend on the base value of R(t)
       dplyr::mutate(maxR = max(R), perc_red = 100*(1-R/max(R)))  %>% ungroup() %>%
       # label variables
-      dplyr::mutate(program = ifelse(Scenario == "Contact tracing\n(Test all)", 
+      dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
                                      "Test all", "No contact tracing"),
-                    program = ifelse(Scenario == "Contact tracing\n(Test symptomatic)", 
-                                     "Test symptomatic", program),
                     program = factor(program, levels = c("No contact tracing", 
-                                                         "Test symptomatic", 
                                                          "Test all")),
         ctract = paste(contact_trace_prob*100, "% contacts traced"))
     return(a)
     
   }
 
-all_output <- get_R_paper(test_uptake = 0.8) %>% 
+all_output <- get_R_paper() %>% 
               mutate(R_scenario = case_when(
-                SAR == 0.12 & HiMSM_contacts == (12/14) ~ "A. SAR = 0.12, Avg. Contact = 9, R0 = 1.08", 
-                SAR == 0.12 & HiMSM_contacts == (17/14) ~ "B. SAR = 0.12, Avg. Contact = 12, R0 = 1.44", 
-                SAR == 0.18 & HiMSM_contacts == (12/14) ~ "C. SAR = 0.18, Avg. Contact = 9, R0 = 1.62", 
-                SAR == 0.18 & HiMSM_contacts == (17/14) ~ "D. SAR = 0.18, Avg. Contact = 12, R0 = 2.16"),
-                HiMSM_contacts = HiMSM_contacts*14) %>%
-              filter(Scenario == "Contact tracing\n(Test all)")
+                SAR == 0.1 & HiMSM_contacts == (7/14) ~  "A. R0 = 1.05", 
+                SAR == 0.1 & HiMSM_contacts == (9/14) ~  "B. R0 = 1.35", 
+                SAR == 0.14 & HiMSM_contacts == (7/14) ~ "C. R0 = 1.47", 
+                SAR == 0.14 & HiMSM_contacts == (9/14) ~ "D. R0 = 1.89"),
+                HiMSM_contacts = HiMSM_contacts*14) 
 
-pdf("prelim.plots", width = 8, height = 6)
-
-  ggplot(all_output,
+  ggplot(filter(all_output, vax < 0.2),
         aes(x = vax, y = R)) +
-  geom_line(aes(color = as.factor(HiMSM_prob.det),
+  geom_line(aes(color = as.factor(HiMSM_prob.det_comm),
                 alpha = as.factor(contact_trace_prob))) + 
   facet_wrap(.~R_scenario) + 
   geom_hline(yintercept = 1, color = "forest green", size = 0.5) + 
@@ -121,157 +115,67 @@ pdf("prelim.plots", width = 8, height = 6)
        color = "Community Detection Rate (High Contact)", 
        alpha = "Probability that Contacts are Traced")
   
-  
-  ggplot(filter(all_output, 
-                (SAR == 0.12 & HiMSM_contacts == 17) | 
-                (SAR == 0.18 & HiMSM_contacts == 12)), 
-         aes(x = vax, y = R)) +
-    geom_line(aes(color = as.factor(HiMSM_prob.det),
-                  alpha = as.factor(contact_trace_prob))) + 
-    facet_wrap(.~R_scenario) + 
-    geom_hline(yintercept = 1, color = "forest green", size = 0.5) + 
-    theme_bw() + 
-    labs(y = "Estiamted R Effective", 
-         x = "Vaccine Coverage (assume 100% efficacy)", 
-         color = "Community Detection Rate (High Contact)", 
-         alpha = "Probability that Contacts are Traced")
-  
-  ggplot(filter(all_output, 
-                (SAR == 0.12 & HiMSM_contacts == 12), 
-                vax == 0.15),
-         aes(x = contact_trace_prob, y = perc_red)) +
-    geom_line(aes(color = as.factor(HiMSM_prob.det))) + 
-    theme_bw() + 
-    labs(y = "Reduction in Rt (percent)", 
-         x = "Probability that Contacts are Traced", 
-         color = "Community Detection Rate (High Contact)")
-  
-  dev.off()
-    
 
-realR <- filter(all_output, 
-                  (SAR == 0.12 & HiMSM_contacts == 17) | 
-                  (SAR == 0.18 & HiMSM_contacts == 12)) %>%
-          group_by( HiMSM_prob.det, vax, contact_trace_prob) %>%
-          summarise(perc_red = mean(perc_red)) %>% ungroup()
+# optimized
+result <- data.frame()
 
-#obj_function = function(param, Rt_goal, other_params){ 
-#  run_model(params); return(abs(Rt_est-Rt_goal)
-#}
-#  
-#optim(param = starting_param_that_you_vary, data = other, method)
-  
-
-## JIYE TO MAKE ADDITIONAL CHANGES HERE
-
-#### MAKE HEATMAP ####
-make_heatmap = function(R, title, perc_asymp = 0.4, save = T, show_legend = T) {
-  
-  # make color palette
-  pal = brewer.pal(9, "Greens")[1:9]
-  
-  # make the plot
-  plot = ggplot(R %>% filter(Scenario != "No contact \ntracing" & A_prob == perc_asymp), 
-         aes(x = S_prob.det, y = contact_trace_prob, fill = perc_red)) + geom_tile() +
-    geom_text(aes(label = round(perc_red))) + 
-    theme(axis.line = element_blank()) + 
-    scale_fill_gradient(name = expression("Percentage reduction in "*R[t]), low = pal[1], high = pal[8]) + 
-    labs(x = "Fraction of symptomatic cases detected in community", y = "Fraction of contacts successfully traced") + 
-    facet_grid(var~program)
-  
-  if(save){
-    # store output as png
-    png(paste0(title, ".png"),width=11, height=9, units = "in", res = 300)
-      print(plot)
-    dev.off()
+for(j in c(0, 0.1, 0.3, 0.5, 0.7)){
+  for(k in c(0.1, 0.14)){
+    for(l in c(7/14, 9/14)){
+      
+      obj_fun = function(pars, # pars to optimize over 
+                         Rt_goal = 1, # goal Rt
+                         duration = 21, 
+                         HiMSM_prob.det = 0.1, 
+                         HiMSM_prob.det_traced = 0.85, 
+                         adh = 0.9, 
+                         adh2 = 0.9) # other pars
+      {
+        contact_trace_prob <- pars[1]
+        HiMSM_prob.det_comm <- pars[2]
+        vax <- j
+        SAR = k
+        HiMSM_contacts = l
+        
+        a = data.frame()
+        # make parameter vectors
+        z = make_params(duration = duration,  
+                        HiMSM_prob.det = HiMSM_prob.det, 
+                        HiMSM_prob.det_traced = HiMSM_prob.det_traced, 
+                        adh = adh,
+                        adh2 = adh2, 
+                        SAR = SAR, 
+                        HiMSM_contacts = HiMSM_contacts,
+                        HiMSM_prob.det_comm = HiMSM_prob.det_comm,
+                        vax = vax, 
+                        contact_trace_prob = contact_trace_prob)
+        
+        a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) ) %>% 
+          dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
+                                         "Test all", "No contact tracing")) %>%
+          dplyr::filter(program == "Test all") 
+        
+        return(abs(log(a$R)))
+        
+      }
+      
+      res <- optim(par = c(0.5, 0.5), #initial values
+                   fn = obj_fun, # function
+                   gr = NULL, 
+                   method = "L-BFGS-B",
+                   lower = 0, upper = 0.8)
+      
+      pre <- cbind(vax = j, 
+                   R0 = k*l*21, 
+                   con.trac = res[["par"]][1],
+                   comm.det = res[["par"]][2], 
+                   Rt = res[["value"]])
+      
+      result <- rbind(result, pre)
+    }
   }
-  
-  # return plot 
-  return(plot)
-  
 }
 
-#### MAKE LINEGRAPH ####
-make_linegraph = function(R, title, LoMSM_prob = .4, save = F){
   
-  # make color palette
-  pal = brewer.pal(9, "Blues")[c(2,3,5,7,9)]
-  
-  # select lines to show
-  ctrace_keep = unique(R$contact_trace_prob)[c(1,3,5,7,9)]
-  
-  # make plot
-  plot = ggplot(R %>% filter(Scenario != "No contact \ntracing" & LoMSM_prob == .4 & 
-                         (contact_trace_prob%in%ctrace_keep)), 
-         aes(x = HiMSM_prob.det, y = perc_red, group = factor(contact_trace_prob), 
-             col = factor(contact_trace_prob))) + geom_line() +
-    theme(axis.line = element_blank()) + 
-    scale_color_manual(name = "Fraction of contacts\nsuccessfully traced", values= pal) + 
-    labs(x = "Fraction of symptomatic cases detected in community", y = expression("Percentage reduction in "*R[t])) + 
-    facet_grid(var~program) +  guides(colour = guide_legend(reverse=T))
-  
-  if(save){
-    # store output as png
-    png(paste0("base_case.png"),width=9, height=6.5, units = "in", res = 300)
-      print(plot)
-    dev.off()
-  }
-  
-  # return plot
-  return(plot)
-  
-}
 
-#### FIGURES ####
 
-# base case
-  # run model
-  f = get_R_paper()
-  
-  # base case heatmap
-  h1 = make_heatmap(f, "heatmap_base_case")
-  l1 = make_linegraph(f, "linegraph_base_case")
-  
-  # asymptomatic sensitivity analysis
-  h2 = make_heatmap(f, "heatmap_sens_asymp", perc_asymp = .2)
-  l2 = make_linegraph(f, "linegraph_sens_asymp", perc_asymp = .2)
-
-# tracing + testing scale-up
-  # run model
-  g = get_R_paper(comparator = "Scale-up")
-  h3 = make_heatmap(g, "heatmap_sens_test")
-  l3 = make_linegraph(g, "linegraph_sens_test")
-  
-# varying multiple on transmission
-  i = get_R_paper(rel_trans = .75)
-  h4 = make_heatmap(i, "heatmap_rel_trans")
-
-#### PAPER NUMBERS ####
-
-  # filter to be > 50% testing of symptomatics + > 50% contact tracing
-  # set at base case for asymptomatics (40%)
-  f2 = f %>% filter(Scenario!="No contact \ntracing" & S_prob.det > 0.5 & contact_trace_prob > 0.5 & A_prob==.4)
-  
-  # increase from testing
-  print(f2 %>% 
-    group_by(contact_trace_prob, S_prob.det, adh, A_prob) %>% 
-    dplyr::summarize(out = perc_red[2]/perc_red[1]) %>% ungroup() %>% 
-      summarize(median(out), quantile(out, .25), quantile(out, .75)))
-  
-  # increase from testing by isolation and quarantine efficacy
-  print(f2 %>% 
-          group_by(contact_trace_prob, S_prob.det, adh, A_prob) %>% 
-          dplyr::summarize(out = perc_red[2]/perc_red[1]) %>% group_by(adh) %>% 
-          dplyr::summarize(median(out)))
-  
-  # benefits by isolation and quarantine efficacy
-  print(f2 %>% 
-          group_by(Scenario, adh) %>% 
-          dplyr::summarize(median(perc_red)))
-  
-  # compare to lower asymptomatic probability
-  print(f %>% filter(Scenario!="No contact \ntracing" & S_prob.det > 0.5 & contact_trace_prob > 0.5) %>% 
-    group_by(contact_trace_prob, S_prob.det, adh, Scenario) %>% 
-    dplyr::summarize(out = perc_red[1]/perc_red[2]) %>% ungroup() %>% 
-    summarize(median(out), quantile(out, .25), quantile(out, .75)))
-  
