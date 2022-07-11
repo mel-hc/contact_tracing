@@ -116,7 +116,7 @@ all_output <- get_R_paper() %>%
        alpha = "Probability that Contacts are Traced")
   
 
-# optimized
+# optimization attempt (it does not do what we want it to)
 result <- data.frame()
 
 for(j in c(0, 0.1, 0.3, 0.5, 0.7)){
