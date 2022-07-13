@@ -103,10 +103,71 @@ all_output <- get_R_paper() %>%
                 SAR == 0.14 & HiMSM_contacts == (9/14) ~ "D. R0 = 1.89"),
                 HiMSM_contacts = HiMSM_contacts*14) 
 
-  ggplot(filter(all_output, vax < 0.2),
-        aes(x = vax, y = R)) +
-  geom_line(aes(color = as.factor(HiMSM_prob.det_comm),
-                alpha = as.factor(contact_trace_prob))) + 
+# optimization attempt (it does not do what we want it to)
+result <- data.frame()
+
+for(i in seq(0.01, 0.8, by = 0.01)){
+for(j in seq(0.2, 0.6, by = 0.1)){
+  for(k in c(0.1, 0.14)){
+    for(l in c(7/14, 9/14)){
+      
+  obj_fun = function(pars){ 
+        # make parameter vectors
+        z = make_params(duration = 21,  
+                        HiMSM_prob.det = 0.1, 
+                        HiMSM_prob.det_traced = 0.85, 
+                        adh = 0.9,
+                        adh2 = 0.9, 
+                        SAR = k, 
+                        HiMSM_contacts = l,
+                        HiMSM_prob.det_comm = i,
+                        vax = j, 
+                        contact_trace_prob =  pars[1])
+        a = data.frame()
+        a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) ) %>% 
+          dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
+                                         "Test all", "No contact tracing")) %>%
+          dplyr::filter(program == "Test all") 
+        
+        return(abs(a$R - 1))
+      }
+      
+      # optimization routine
+      res <- optim(par = c(0.5), #initial value
+                   fn = obj_fun, # function
+                   gr = NULL, 
+                   method = "L-BFGS-B",
+                   lower = 0, upper = 1, 
+                   control = list(factr = 1e-7, 
+                                  pgtol = 1e-7))
+      # store results
+      pre <- cbind(vax = j, 
+                   R0 = k*l*21, 
+                   comm.det = i,
+                   con.trac = (res[["par"]][1]), 
+                   Rt_pm1 = (res[["value"]]), 
+                   message = res[["convergence"]])
+      
+      result <- rbind(result, pre)
+      }
+    }
+  }
+}
+
+
+# placeholder figures
+ggplot(result, aes(x = comm.det, y = con.trac)) + 
+  geom_point(size = 0.5) + 
+  facet_grid(vax ~ R0) + theme_bw()
+
+
+ggplot(filter(all_output, 
+              Scenario != "No contact tracing", 
+              contact_trace_prob == 0.8),
+       aes(x = vax, y = R)) +
+  geom_line(aes(color = as.factor(HiMSM_prob.det_comm)#,
+                #alpha = as.factor(contact_trace_prob)
+  )) + 
   facet_wrap(.~R_scenario) + 
   geom_hline(yintercept = 1, color = "forest green", size = 0.5) + 
   theme_bw() + 
@@ -114,68 +175,3 @@ all_output <- get_R_paper() %>%
        x = "Vaccine Coverage (assume 100% efficacy)", 
        color = "Community Detection Rate (High Contact)", 
        alpha = "Probability that Contacts are Traced")
-  
-
-# optimization attempt (it does not do what we want it to)
-result <- data.frame()
-
-for(j in c(0, 0.1, 0.3, 0.5, 0.7)){
-  for(k in c(0.1, 0.14)){
-    for(l in c(7/14, 9/14)){
-      
-      obj_fun = function(pars, # pars to optimize over 
-                         Rt_goal = 1, # goal Rt
-                         duration = 21, 
-                         HiMSM_prob.det = 0.1, 
-                         HiMSM_prob.det_traced = 0.85, 
-                         adh = 0.9, 
-                         adh2 = 0.9) # other pars
-      {
-        contact_trace_prob <- pars[1]
-        HiMSM_prob.det_comm <- pars[2]
-        vax <- j
-        SAR = k
-        HiMSM_contacts = l
-        
-        a = data.frame()
-        # make parameter vectors
-        z = make_params(duration = duration,  
-                        HiMSM_prob.det = HiMSM_prob.det, 
-                        HiMSM_prob.det_traced = HiMSM_prob.det_traced, 
-                        adh = adh,
-                        adh2 = adh2, 
-                        SAR = SAR, 
-                        HiMSM_contacts = HiMSM_contacts,
-                        HiMSM_prob.det_comm = HiMSM_prob.det_comm,
-                        vax = vax, 
-                        contact_trace_prob = contact_trace_prob)
-        
-        a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) ) %>% 
-          dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
-                                         "Test all", "No contact tracing")) %>%
-          dplyr::filter(program == "Test all") 
-        
-        return(abs(log(a$R)))
-        
-      }
-      
-      res <- optim(par = c(0.5, 0.5), #initial values
-                   fn = obj_fun, # function
-                   gr = NULL, 
-                   method = "L-BFGS-B",
-                   lower = 0, upper = 0.8)
-      
-      pre <- cbind(vax = j, 
-                   R0 = k*l*21, 
-                   con.trac = res[["par"]][1],
-                   comm.det = res[["par"]][2], 
-                   Rt = res[["value"]])
-      
-      result <- rbind(result, pre)
-    }
-  }
-}
-
-  
-
-
