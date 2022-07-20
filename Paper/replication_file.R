@@ -43,7 +43,6 @@ get_R_paper = function(duration = 21, # duration of infectiousness
                   contact_trace_prob = seq(0.2, 0.8, length.out = 4)
       ))
   
-  
     # create data frame to store output 
     a = data.frame()
     
@@ -86,10 +85,9 @@ get_R_paper = function(duration = 21, # duration of infectiousness
       # so the percent reduction does not depend on the base value of R(t)
       dplyr::mutate(maxR = max(R), perc_red = 100*(1-R/max(R)))  %>% ungroup() %>%
       # label variables
-      dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
-                                     "Test all", "No contact tracing"),
-                    program = factor(program, levels = c("No contact tracing", 
-                                                         "Test all")),
+      dplyr::mutate(program = factor(Scenario, 
+                                     levels = c("No contact tracing", 
+                                                "Contact tracing")),
         ctract = paste(contact_trace_prob*100, "% contacts traced"))
     return(a)
     
@@ -102,27 +100,48 @@ all_output <- get_R_paper() %>%
                 SAR == 0.14 & HiMSM_contacts == (7/14) ~ "C. R0 = 1.47", 
                 SAR == 0.14 & HiMSM_contacts == (9/14) ~ "D. R0 = 1.89"),
                 HiMSM_contacts = HiMSM_contacts*14) 
+# old
+ggplot(filter(all_output, 
+              Scenario != "No contact tracing", 
+              HiMSM_prob.det_comm == 0.4),
+       aes(x = vax, y = R)) +
+  geom_line(aes(color = as.factor(contact_trace_prob)#,
+                #alpha = as.factor(contact_trace_prob)
+  )) + 
+  facet_wrap(.~R_scenario) + 
+  geom_hline(yintercept = 1, color = "forest green", size = 0.5) + 
+  theme_bw() + 
+  labs(y = "Estiamted R Effective", 
+       x = "Vaccine Coverage (assume 100% efficacy)", 
+       #color = "Community Detection Rate (High Contact)", 
+       color = "Probability that Contacts are Traced")
+
+
+
+
+
 
 # optimization attempt (it does not do what we want it to)
 result <- data.frame()
 
-for(i in seq(0.01, 0.8, by = 0.01)){
-for(j in seq(0.2, 0.6, by = 0.1)){
-  for(k in c(0.1, 0.14)){
-    for(l in c(7/14, 9/14)){
+for(i in seq(0.1, 0.8, by = 0.1)){
+  for(j in seq(0,1, by = 0.2)){
+    for(k in seq(1.2, 1.8, by = 0.1)){
       
   obj_fun = function(pars){ 
         # make parameter vectors
-        z = make_params(duration = 21,  
+        z = make_params(vax = pars[1], 
+                        HiMSM_prob.det_comm = i,
+                        contact_trace_prob = j,
+                        SAR = k, 
+                        duration = 21,  
                         HiMSM_prob.det = 0.1, 
                         HiMSM_prob.det_traced = 0.85, 
                         adh = 0.9,
                         adh2 = 0.9, 
-                        SAR = k, 
-                        HiMSM_contacts = l,
-                        HiMSM_prob.det_comm = i,
-                        vax = j, 
-                        contact_trace_prob =  pars[1])
+                        HiMSM_contacts =  1/21#just making it easier to iter R0
+                        )
+        
         a = data.frame()
         a = bind_rows(a, calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) ) %>% 
           dplyr::mutate(program = ifelse(Scenario == "Contact tracing and increased testing", 
@@ -133,7 +152,7 @@ for(j in seq(0.2, 0.6, by = 0.1)){
       }
       
       # optimization routine
-      res <- optim(par = c(0.5), #initial value
+      res <- optim(par = c(0.2), #initial value
                    fn = obj_fun, # function
                    gr = NULL, 
                    method = "L-BFGS-B",
@@ -141,10 +160,10 @@ for(j in seq(0.2, 0.6, by = 0.1)){
                    control = list(factr = 1e-7, 
                                   pgtol = 1e-7))
       # store results
-      pre <- cbind(vax = j, 
-                   R0 = k*l*21, 
+      pre <- cbind(R0 = k*(1/21)*21, 
+                   con.trac = j,
                    comm.det = i,
-                   con.trac = (res[["par"]][1]), 
+                   vax = (res[["par"]][1]), 
                    Rt_pm1 = (res[["value"]]), 
                    message = res[["convergence"]])
       
@@ -152,26 +171,11 @@ for(j in seq(0.2, 0.6, by = 0.1)){
       }
     }
   }
-}
+
 
 
 # placeholder figures
-ggplot(result, aes(x = comm.det, y = con.trac)) + 
-  geom_point(size = 0.5) + 
-  facet_grid(vax ~ R0) + theme_bw()
-
-
-ggplot(filter(all_output, 
-              Scenario != "No contact tracing", 
-              contact_trace_prob == 0.8),
-       aes(x = vax, y = R)) +
-  geom_line(aes(color = as.factor(HiMSM_prob.det_comm)#,
-                #alpha = as.factor(contact_trace_prob)
-  )) + 
-  facet_wrap(.~R_scenario) + 
-  geom_hline(yintercept = 1, color = "forest green", size = 0.5) + 
-  theme_bw() + 
-  labs(y = "Estiamted R Effective", 
-       x = "Vaccine Coverage (assume 100% efficacy)", 
-       color = "Community Detection Rate (High Contact)", 
-       alpha = "Probability that Contacts are Traced")
+ggplot(filter(result, comm.det == "0.3"), 
+       aes(y = vax, x = R0)) + 
+  geom_line(aes(color = as.factor(con.trac)), size = 1) +
+  theme_bw()

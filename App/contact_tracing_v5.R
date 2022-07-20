@@ -89,7 +89,7 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det  = HiMSM_prob.det_comm,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.88)),
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
            HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
@@ -97,7 +97,7 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det  = HiMSM_prob.det_comm,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.88)),
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
            HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # RETURN OUTPUT
@@ -117,7 +117,7 @@ calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
   out = bind_rows(dom_eigen(params_cf, params_cf, params_cf) %>% 
                     mutate(Scenario = "No contact tracing"),
                   dom_eigen(params, params_ctrace_1, params_ctrace_2plus) %>% 
-                    mutate(Scenario = "Contact tracing and increased testing"))
+                    mutate(Scenario = "Contact tracing"))
   return(out)  
 }
 
@@ -129,10 +129,10 @@ calc_R = function(params_cf,# NO CONTACT TRACING (counterfactual)
 # 5) Return data from of relevant quantities
 
 dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
-# call transition probs -- NAME CHANGES HERE
+# call transition probs 
   x = get_trans_probs(params, first_gen = T, ctrace = F)
   y = get_trans_probs(params_ctrace_1, first_gen = F, ctrace = T) 
-  z = get_trans_probs(params_ctrace_2plus,  first_gen = F, ctrace = T)
+  z = get_trans_probs(params_ctrace_2plus, first_gen = F, ctrace = T)
   
   # put in matrix
   mat = matrix(unlist(c(rep(x, 3), rep(y, 1), rep(z, 1))), 
@@ -151,11 +151,6 @@ dom_eigen = function(params, params_ctrace_1, params_ctrace_2plus){
 #### get_trans_probs: Pull together transition probabilities ####
 # by symptom status, detection status, whether originated from contact tracing 
 # + gen, whether traced
-
-## MELANIE 
-# figure out what the fuck is happening here
-# like is the assumption that traced individuals have the same prob. det. 
-# as the community? It doesn't make sense in this context. 
 
 get_trans_probs = function(params, first_gen = F, ctrace = F) {
 
