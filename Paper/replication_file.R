@@ -38,8 +38,8 @@ get_R_paper = function(duration = 21, # duration of infectiousness
                 expand.grid(
                   SAR = c(0.10, 0.14), 
                   HiMSM_contacts = c(7/14, 9/14),
-                  HiMSM_prob.det_comm = seq(0.2, 0.8, length.out = 4),
-                  vax = seq(0, 0.7, length.out = 8), 
+                  HiMSM_prob.det_comm = seq(0.1, 0.7, length.out = 4),
+                  vax = seq(0, 0.5, length.out = 6), 
                   contact_trace_prob = seq(0.2, 0.8, length.out = 4)
       ))
   
@@ -77,23 +77,25 @@ get_R_paper = function(duration = 21, # duration of infectiousness
     # Post-processing
     # calculate relative R
     # make variable labels
-    a = a %>% dplyr::group_by(SAR, HiMSM_contacts, HiMSM_prob.det_comm, vax, 
-                              contact_trace_prob) %>%
-      # find maximum R
-      # then take ratio compared to this
-      # recall eigenvalues scale linearly
-      # so the percent reduction does not depend on the base value of R(t)
-      dplyr::mutate(maxR = max(R), perc_red = 100*(1-R/max(R)))  %>% ungroup() %>%
-      # label variables
-      dplyr::mutate(program = factor(Scenario, 
-                                     levels = c("No contact tracing", 
-                                                "Contact tracing")),
-        ctract = paste(contact_trace_prob*100, "% contacts traced"))
+    #a = a %>% dplyr::group_by(SAR, HiMSM_contacts, HiMSM_prob.det_comm, vax, 
+    #                          contact_trace_prob) %>%
+    #  # find maximum R
+    #  # then take ratio compared to this
+    #  # recall eigenvalues scale linearly
+    #  # so the percent reduction does not depend on the base value of R(t)
+    #  dplyr::mutate(maxR = max(R), 
+    #                perc_red = 100*(1-R/max(R))) %>% 
+    #  ungroup() %>%
+    #  # label variables
+    #  dplyr::mutate(program = factor(Scenario, 
+    #                                 levels = c("No contact tracing", 
+    #                                            "Contact tracing")),
+    #    ctract = paste(contact_trace_prob*100, "% contacts traced"))
     return(a)
     
   }
 
-all_output <- get_R_paper() %>% 
+all_output <- get_R_paper(adh = 1, adh2 = 1) %>% 
               mutate(R_scenario = case_when(
                 SAR == 0.1 & HiMSM_contacts == (7/14) ~  "A. R0 = 1.05", 
                 SAR == 0.1 & HiMSM_contacts == (9/14) ~  "B. R0 = 1.35", 
@@ -103,7 +105,7 @@ all_output <- get_R_paper() %>%
 # old
 ggplot(filter(all_output, 
               Scenario != "No contact tracing", 
-              HiMSM_prob.det_comm == 0.4),
+              HiMSM_prob.det_comm == 0.3),
        aes(x = vax, y = R)) +
   geom_line(aes(color = as.factor(contact_trace_prob)#,
                 #alpha = as.factor(contact_trace_prob)

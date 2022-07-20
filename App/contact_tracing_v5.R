@@ -97,8 +97,8 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh2)
   params_ctrace_2plus = params %>% 
     mutate(HiMSM_prob.det  = HiMSM_prob.det_comm,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh*0.75)),
-           HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
+           HiMSM_U_RR      = HiMSM_U_RR*(1-(adh2*0.75)),
+           HiMSM_D_RR      = HiMSM_D_RR*(1-adh2))
   
   # RETURN OUTPUT
   return(list(params_cf, params, params_ctrace_1, params_ctrace_2plus))
@@ -167,13 +167,13 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
     HiMSM_D_NT_noctrace = # gen 1 not from tracing, gen 2 not traced
       (1-params$contact_trace_prob)* # prob. gen 1 not contact traced
       (params$HiMSM_prob.det)*
-      (1-ctrace)* # prob. gen 2 not contact traced
+      (1-ctrace)* #  contact trace indicator
       (params$HiMSM_D_RR*params$duration*(1-params$vax))
 
     HiMSM_D_NT_ctrace = # gen 1 not from tracing, gen 2 traced
       (1-params$contact_trace_prob)*
       (params$HiMSM_prob.det)*
-      (ctrace)* # prob. gen 2 contact traced
+      (ctrace)* #  contact trace indicator
       (params$HiMSM_D_RR*params$duration*(1-params$vax))
     
     HiMSM_U = # undetected -- second generation cannot be traced
