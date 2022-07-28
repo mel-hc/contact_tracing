@@ -13,8 +13,8 @@ get_R = function(SAR, # secondary attack rate
                  HiMSM_prob.det_traced, # traced detection
                  contact_trace_prob, # probability of contact tracing 
                  adh, # adherence to isolation (% redux in contacts)
-                 adh2, # adherence to isolation (% redux in contacts)
                  vax, # fraction of MSM pop. vaccinated
+                 rel_trans, # relative transmissibility of detected cases
                  xaxis){
   # set x-axis
   var = c(eval(parse(text = xaxis)), seq(.1, .9, length.out = 9), .95)
@@ -38,7 +38,8 @@ get_R = function(SAR, # secondary attack rate
                     contact_trace_prob,
                     adh, 
                     adh2, 
-                    vax)
+                    vax, 
+                    rel_trans)
 
     a = bind_rows(a, 
                   calc_R(z[[1]], z[[2]], z[[3]], z[[4]]) %>% 
@@ -65,14 +66,14 @@ make_params = function(SAR, # secondary attack rate
                        HiMSM_prob.det_traced, # traced detection
                        contact_trace_prob, # probability of contact tracing 
                        adh, # adherence to isolation (% redux in contacts)
-                       adh2, # adherence to isolation (% redux in contacts)
-                       vax # fraction of MSM pop. vaccinated
+                       vax, # fraction of MSM pop. vaccinated
+                       rel_trans # relative transmissibility of detected cases
                        ){
   # BASE CASE 
   # Here, 'U' refers to those who are not detected and 'D' refers to those 
   # who are detected. 
   params = data.frame(HiMSM_U_RR = HiMSM_contacts*SAR, 
-                      HiMSM_D_RR = HiMSM_contacts*SAR,
+                      HiMSM_D_RR = HiMSM_contacts*SAR*rel_trans,
                       HiMSM_prob.det = HiMSM_prob.det_comm,
                       duration, 
                       contact_trace_prob,
@@ -88,7 +89,7 @@ make_params = function(SAR, # secondary attack rate
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det = HiMSM_prob.det_traced,
-           HiMSM_U_RR      = HiMSM_U_RR*(1-adh2),
+           HiMSM_U_RR      = HiMSM_U_RR*(1-adh),
            HiMSM_D_RR      = HiMSM_D_RR*(1-adh))
   
   # CONTACT TRACING GEN 2
