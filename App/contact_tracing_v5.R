@@ -14,6 +14,7 @@ get_R = function(SAR, # secondary attack rate
                  contact_trace_prob, # probability of contact tracing 
                  adh, # adherence to isolation (% redux in contacts)
                  vax, # fraction of MSM pop. vaccinated
+                 vax.eff, # the efficacy of the vaccine against infection
                  rel_trans, # relative transmissibility of detected cases
                  xaxis){
   # set x-axis
@@ -39,6 +40,7 @@ get_R = function(SAR, # secondary attack rate
                     adh, 
                     adh2, 
                     vax, 
+                    vax.eff,
                     rel_trans)
 
     a = bind_rows(a, 
@@ -67,17 +69,19 @@ make_params = function(SAR, # secondary attack rate
                        contact_trace_prob, # probability of contact tracing 
                        adh, # adherence to isolation (% redux in contacts)
                        vax, # fraction of MSM pop. vaccinated
+                       vax.eff, # the efficacy of the vaccine against infection
                        rel_trans # relative transmissibility of detected cases
                        ){
   # BASE CASE 
   # Here, 'U' refers to those who are not detected and 'D' refers to those 
   # who are detected. 
   params = data.frame(HiMSM_U_RR = HiMSM_contacts*SAR, 
-                      HiMSM_D_RR = HiMSM_contacts*SAR*rel_trans,
-                      HiMSM_prob.det = HiMSM_prob.det_comm,
-                      duration, 
-                      contact_trace_prob,
-                      vax) 
+                    HiMSM_D_RR = HiMSM_contacts*SAR*(1-rel_trans),
+                    HiMSM_prob.det = HiMSM_prob.det_comm,
+                    duration, 
+                    contact_trace_prob,
+                    vax, 
+                    vax.eff) 
   
   # COUNTERFACTUAL: base case with no contact tracing
   params_cf = params %>% 
@@ -85,7 +89,7 @@ make_params = function(SAR, # secondary attack rate
            HiMSM_prob.det = HiMSM_prob.det_base)
 
   # CONTACT TRACING GEN 1
-  # 1) Increase detection in High Contact group (incr_HiMSM_prob.det)
+  # 1) Increase detection in High Contact group (HiMSM_prob.det)
   # 2) Decrease transmission according to adherence (adh)
   params_ctrace_1 = params %>% 
     mutate(HiMSM_prob.det = HiMSM_prob.det_traced,
@@ -154,29 +158,29 @@ get_trans_probs = function(params, first_gen = F, ctrace = F) {
       first_gen* 
       params$contact_trace_prob*# contact tracing prob
       params$HiMSM_prob.det* # detection rate
-      (params$HiMSM_D_RR*params$duration*(1-params$vax)) # Rt (RR * duration)
+      (params$HiMSM_D_RR*params$duration*(1-params$vax*params$vax.eff)) # Rt (RR * duration)
 
     HiMSM_D_T_2  = 
       (1-first_gen)*
       params$contact_trace_prob*
       params$HiMSM_prob.det*
-      (params$HiMSM_D_RR*params$duration*(1-params$vax)) 
+      (params$HiMSM_D_RR*params$duration*(1-params$vax*params$vax.eff)) 
 
     HiMSM_D_NT_noctrace = 
       (1-params$contact_trace_prob)* # prob. gen 1 not contact traced
       params$HiMSM_prob.det*
       (1-ctrace)* #  contact trace indicator
-      (params$HiMSM_D_RR*params$duration*(1-params$vax))
+      (params$HiMSM_D_RR*params$duration*(1-params$vax*params$vax.eff))
 
     HiMSM_D_NT_ctrace = 
       (1-params$contact_trace_prob)*
       (params$HiMSM_prob.det)*
       (ctrace)* #  contact trace indicator
-      (params$HiMSM_D_RR*params$duration*(1-params$vax))
+      (params$HiMSM_D_RR*params$duration*(1-params$vax*params$vax.eff))
     
     HiMSM_U = 
       (1-params$HiMSM_prob.det)*
-      (params$HiMSM_U_RR*params$duration*(1-params$vax))
+      (params$HiMSM_U_RR*params$duration*(1-(params$vax*params$vax.eff)))
 
 # return values
   trans = c(
